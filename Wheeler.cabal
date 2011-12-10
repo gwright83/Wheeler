@@ -1,0 +1,44 @@
+Name:                Wheeler
+Version:             0.1
+Description:         Wheeler library for symbolic tensor algebra
+License:             BSD3
+License-file:        LICENSE
+Author:              Gregory Wright
+Maintainer:          gwright@antiope.com
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+   
+Flag developer
+  description: operate in developer mode
+  default: False
+
+Library
+  Hs-Source-Dirs:
+    src
+
+  Exposed-modules:
+    Math.Symbolic.Wheeler
+    Math.Symbolic.Wheeler.Basic
+    Math.Symbolic.Wheeler.Canonicalize
+    Math.Symbolic.Wheeler.Commutativity
+    Math.Symbolic.Wheeler.Expr
+    Math.Symbolic.Wheeler.Numeric
+    Math.Symbolic.Wheeler.Symbol
+    Math.Symbolic.Wheeler.Tensor
+    Math.Symbolic.Wheeler.TensorUtilities
+
+  Other-modules:
+    Math.Symbolic.Wheeler.IO
+
+  Build-Depends:
+    base >= 3 && < 5,
+    haskell98,
+    mtl >= 2.0.1.0,
+    parsec >= 3.1.1,
+    uniqueid >= 0.1.1
+
+  if flag(developer)
+    Ghc-Options: -Werror
+    Ghc-Prof-Options: -auto-all
+
+  Ghc-Options: -Wall
