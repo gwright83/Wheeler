@@ -8,6 +8,7 @@
 
 module Math.Symbolic.Wheeler.SimpleSymbol where
 
+import System.IO.Unsafe
 
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
@@ -17,7 +18,7 @@ import Math.Symbolic.Wheeler.UniqueID
 
 
 data S = S {
-     simpleIdentifier    :: Id,
+     simpleIdentifier    :: IO Id,
      simpleName          :: String,
      simpleTeXName       :: String,
      simpleComplexity    :: Complexity,
@@ -25,7 +26,10 @@ data S = S {
 }
 
 instance Eq S where
-    (==) x y = (simpleIdentifier x) == (simpleIdentifier y)
+    (==) x y = unsafePerformIO $ do 
+        x' <- simpleIdentifier x
+        y' <- simpleIdentifier y
+        return (x' == y')
 
 instance Ord S where
     compare x y = if isNonCommuting x && isNonCommuting y
@@ -42,7 +46,7 @@ instance Named S where
     teXName = simpleTeXName
 
 instance Identified S where
-    identifier = simpleIdentifier
+    identifier s = unsafePerformIO $ do s' <- simpleIdentifier s; return s'
 
 instance Commutable S where
     commutativity = simpleCommutativity

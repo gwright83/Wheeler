@@ -43,7 +43,7 @@ import Math.Symbolic.Wheeler.UniqueID
 --
 --
 data T = T {
-     tensorIdentifier    :: Id,
+     tensorIdentifier    :: IO Id,
      tensorName          :: String,
      tensorTeXName       :: String,
      manifold            :: Manifold,    -- the parent manifold of the tensor field
@@ -60,7 +60,10 @@ data T = T {
 -- name but different indices be distinguished?
 --
 instance Eq T where
-    (==) x y = tensorIdentifier x == tensorIdentifier y
+    (==) x y = unsafePerformIO $ do
+        x' <- tensorIdentifier x
+        y' <- tensorIdentifier y
+        return (x' == y')
 
 instance Ord T where
     compare _ _ = GT
@@ -70,7 +73,7 @@ instance Named T where
     teXName = tensorTeXName
 
 instance Identified T where
-    identifier = tensorIdentifier
+    identifier t = unsafePerformIO $ do t' <- tensorIdentifier t; return t'
 
 instance Show T where
     showsPrec d t = showString (tensorName t) .
@@ -287,7 +290,7 @@ mkNamedMetric m nam teXNam i1 i2 =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = unsafePerformIO $ nextId
+                Symbol $ Tensor T { tensorIdentifier    = nextId
                                   , tensorName          = nam
                                   , tensorTeXName       = teXNam
                                   , manifold            = m
@@ -311,7 +314,7 @@ mkKroneckerDelta m nam i1@(Covariant _) i2@(Contravariant _) =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = unsafePerformIO $ nextId
+                Symbol $ Tensor T { tensorIdentifier    = nextId
                                      , tensorName          = nam
                                      , tensorTeXName       = nam
                                      , manifold            = m
@@ -337,7 +340,7 @@ mkKroneckerDelta_ m nam teXNam i1@(Covariant _) i2@(Contravariant _) =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = unsafePerformIO $ nextId
+                Symbol $ Tensor T { tensorIdentifier    = nextId
                                      , tensorName          = nam
                                      , tensorTeXName       = teXNam
                                      , manifold            = m
@@ -364,7 +367,7 @@ mkLeviCivita m nam i1@(Contravariant _) i2@(Contravariant _) i3@(Contravariant _
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = unsafePerformIO $ nextId
+                Symbol $ Tensor T { tensorIdentifier    = nextId
                                      , tensorName          = nam
                                      , tensorTeXName       = nam
                                      , manifold            = m
@@ -393,7 +396,7 @@ mkLeviCivita_ m nam teXNam i1@(Contravariant _) i2@(Contravariant _) i3@(Contrav
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = unsafePerformIO $ nextId
+                Symbol $ Tensor T { tensorIdentifier    = nextId
                                      , tensorName          = nam
                                      , tensorTeXName       = teXNam
                                      , manifold            = m

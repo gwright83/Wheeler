@@ -18,7 +18,7 @@ module Math.Symbolic.Wheeler.Numeric (
 ) where
 
 
-import Ratio
+import Data.Ratio
 
 import Math.Symbolic.Wheeler.Precedence
 

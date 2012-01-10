@@ -25,8 +25,7 @@ module Math.Symbolic.Wheeler.Expr (
 
 import Data.List
 import Data.Maybe
-import Ratio
-import System.IO.Unsafe
+import Data.Ratio
 
 
 import Math.Symbolic.Wheeler.Canonicalize
@@ -517,7 +516,7 @@ instance Fractional Expr where
 
 
 instance Floating Expr where
-         pi       = Symbol $ Simple S { simpleIdentifier    = unsafePerformIO $ nextId
+         pi       = Symbol $ Simple S { simpleIdentifier    = nextId
                                       , simpleName          = "pi"
                                       , simpleTeXName       = "\\pi"
                                       , simpleComplexity    = Real

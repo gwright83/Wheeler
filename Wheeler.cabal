@@ -22,17 +22,29 @@ Library
     Math.Symbolic.Wheeler.Canonicalize
     Math.Symbolic.Wheeler.Commutativity
     Math.Symbolic.Wheeler.Expr
+    Math.Symbolic.Wheeler.IO
     Math.Symbolic.Wheeler.Numeric
     Math.Symbolic.Wheeler.Symbol
     Math.Symbolic.Wheeler.Tensor
+    Math.Symbolic.Wheeler.TensorBasics
     Math.Symbolic.Wheeler.TensorUtilities
 
   Other-modules:
-    Math.Symbolic.Wheeler.IO
+    Math.Symbolic.Wheeler.Annotation
+    Math.Symbolic.Wheeler.Complexity
+    Math.Symbolic.Wheeler.Debug
+    Math.Symbolic.Wheeler.Function
+    Math.Symbolic.Wheeler.Indexed
+    Math.Symbolic.Wheeler.Named
+    Math.Symbolic.Wheeler.NumericRational
+    Math.Symbolic.Wheeler.Precedence
+    Math.Symbolic.Wheeler.SumOrd
+    Math.Symbolic.Wheeler.SimpleSymbol
+    Math.Symbolic.Wheeler.TensorSymmetries
+    Math.Symbolic.Wheeler.UniqueID
 
   Build-Depends:
     base >= 3 && < 5,
-    haskell98,
     mtl >= 2.0.1.0,
     parsec >= 3.1.1,
     uniqueid >= 0.1.1

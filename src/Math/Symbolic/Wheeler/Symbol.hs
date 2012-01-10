@@ -11,7 +11,6 @@ module Math.Symbolic.Wheeler.Symbol where
 
 
 import Data.Maybe
-import System.IO.Unsafe
 
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
@@ -97,7 +96,7 @@ isTensor _          = False
 -- A few handy functions for defining symbols:
 
 simpleSymbol :: String -> Symbol
-simpleSymbol s = Simple S { simpleIdentifier    = unsafePerformIO $ nextId
+simpleSymbol s = Simple S { simpleIdentifier    = nextId
                           , simpleName          = s
                           , simpleTeXName       = s
                           , simpleComplexity    = Real
@@ -105,7 +104,7 @@ simpleSymbol s = Simple S { simpleIdentifier    = unsafePerformIO $ nextId
                           }
 
 ncSymbol :: String -> String -> Symbol
-ncSymbol s rep = Simple S { simpleIdentifier    = unsafePerformIO $ nextId
+ncSymbol s rep = Simple S { simpleIdentifier    = nextId
                           , simpleName          = s
                           , simpleTeXName       = s
                           , simpleComplexity    = Real
