@@ -11,6 +11,7 @@ module Math.Symbolic.Wheeler.Symbol where
 
 
 import Data.Maybe
+import System.IO.Unsafe
 
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
@@ -96,20 +97,24 @@ isTensor _          = False
 -- A few handy functions for defining symbols:
 
 simpleSymbol :: String -> Symbol
-simpleSymbol s = Simple S { simpleIdentifier    = nextId
-                          , simpleName          = s
-                          , simpleTeXName       = s
-                          , simpleComplexity    = Real
-                          , simpleCommutativity = Commuting
-                          }
+simpleSymbol s = unsafePerformIO $ do
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = s
+                                       , simpleTeXName       = s
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = Commuting
+                                       }
 
 ncSymbol :: String -> String -> Symbol
-ncSymbol s rep = Simple S { simpleIdentifier    = nextId
-                          , simpleName          = s
-                          , simpleTeXName       = s
-                          , simpleComplexity    = Real
-                          , simpleCommutativity = NonCommuting (RepSpace rep)
-                          }
+ncSymbol s rep = unsafePerformIO $ do 
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = s
+                                       , simpleTeXName       = s
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = NonCommuting (RepSpace rep)
+                                       }
 
 
 -- Show the internal details of a Symbol:

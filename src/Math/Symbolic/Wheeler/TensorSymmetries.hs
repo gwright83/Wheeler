@@ -9,6 +9,7 @@
 
 module Math.Symbolic.Wheeler.TensorSymmetries (
     Symmetry (..),
+    oneIndex,
     symmetricTwoIndex,
     symmetricThreeIndex,
     symmetricFourIndex,
@@ -29,6 +30,8 @@ newtype Base = Base { base :: [ Int ] }
 newtype GeneratingSet = GeneratingSet { sgs :: [[ Int ]] }
     deriving Show
 
+oneIndex :: Symmetry
+oneIndex = Symmetry (Base {base = [1]}) (GeneratingSet {sgs = [[1, 2, 3]]})
 
 symmetricTwoIndex:: Symmetry
 symmetricTwoIndex   = Symmetry (Base {base = [1, 2]})       (GeneratingSet {sgs = [[1, 2, 3, 4]]})

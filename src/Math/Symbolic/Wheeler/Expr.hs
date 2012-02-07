@@ -26,6 +26,7 @@ module Math.Symbolic.Wheeler.Expr (
 import Data.List
 import Data.Maybe
 import Data.Ratio
+import System.IO.Unsafe
 
 
 import Math.Symbolic.Wheeler.Canonicalize
@@ -516,12 +517,14 @@ instance Fractional Expr where
 
 
 instance Floating Expr where
-         pi       = Symbol $ Simple S { simpleIdentifier    = nextId
-                                      , simpleName          = "pi"
-                                      , simpleTeXName       = "\\pi"
-                                      , simpleComplexity    = Real
-                                      , simpleCommutativity = Commuting
-                                      }
+         pi       = Symbol $ unsafePerformIO $ do
+                        ident <- nextId
+                        return $ Simple S { simpleIdentifier    = ident
+                                          , simpleName          = "pi"
+                                          , simpleTeXName       = "\\pi"
+                                          , simpleComplexity    = Real
+                                          , simpleCommutativity = Commuting
+                                          }
          exp x    = Applic Exp x
          log x    = Applic Log x
          sin x    = Applic Sin x

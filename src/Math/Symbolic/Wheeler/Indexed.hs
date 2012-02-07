@@ -8,8 +8,6 @@
 
 module Math.Symbolic.Wheeler.Indexed where
 
-import System.IO.Unsafe
-
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
 import Math.Symbolic.Wheeler.Expr
@@ -18,7 +16,7 @@ import Math.Symbolic.Wheeler.UniqueID
 
 
 data I = I {
-     indexedIdentifier    :: IO Id,
+     indexedIdentifier    :: Id,
      indexedName          :: String,
      indexedTeXName       :: String,
      indexedIndices       :: [ Index ],
@@ -29,10 +27,7 @@ data I = I {
 data Index = Index Expr
 
 instance Eq I where
-    (==) x y = unsafePerformIO $ do
-        x' <- indexedIdentifier x
-        y' <- indexedIdentifier y
-        return (x' == y')
+    (==) x y = indexedIdentifier x == indexedIdentifier y
 
 instance Ord I where
     compare _ _ = GT
@@ -42,7 +37,7 @@ instance Named I where
     teXName = indexedTeXName
 
 instance Identified I where
-    identifier s = unsafePerformIO $ do s' <- indexedIdentifier s; return s'
+    identifier = indexedIdentifier
 
 instance Show I where
     showsPrec _ i = showString (indexedName i)

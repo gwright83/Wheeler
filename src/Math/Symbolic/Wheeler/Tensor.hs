@@ -11,7 +11,6 @@
 
 module Math.Symbolic.Wheeler.Tensor where
 
-
 import Data.Maybe
 import Prelude hiding ((^))
 import System.IO.Unsafe
@@ -43,7 +42,7 @@ import Math.Symbolic.Wheeler.UniqueID
 --
 --
 data T = T {
-     tensorIdentifier    :: IO Id,
+     tensorIdentifier    :: Id,
      tensorName          :: String,
      tensorTeXName       :: String,
      manifold            :: Manifold,    -- the parent manifold of the tensor field
@@ -60,10 +59,7 @@ data T = T {
 -- name but different indices be distinguished?
 --
 instance Eq T where
-    (==) x y = unsafePerformIO $ do
-        x' <- tensorIdentifier x
-        y' <- tensorIdentifier y
-        return (x' == y')
+    (==) x y = tensorIdentifier x == tensorIdentifier y
 
 instance Ord T where
     compare _ _ = GT
@@ -73,7 +69,7 @@ instance Named T where
     teXName = tensorTeXName
 
 instance Identified T where
-    identifier t = unsafePerformIO $ do t' <- tensorIdentifier t; return t'
+    identifier = tensorIdentifier
 
 instance Show T where
     showsPrec d t = showString (tensorName t) .
@@ -290,16 +286,69 @@ mkNamedMetric m nam teXNam i1 i2 =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = nextId
-                                  , tensorName          = nam
-                                  , tensorTeXName       = teXNam
-                                  , manifold            = m
-                                  , tensorType          = Metric
-                                  , slots               = indices
-                                  , symmetry            = symmetricTwoIndex
-                                  , tensorComplexity    = Real
-                                  , tensorCommutativity = Commuting
-                                  , components          = Nothing }
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = teXNam
+                                               , manifold            = m
+                                               , tensorType          = Metric
+                                               , slots               = indices
+                                               , symmetry            = symmetricTwoIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
+            else error ("index error defining metric " ++ nam)
+
+
+mkVector :: Manifold
+         -> String
+         -> VarIndex
+         -> Expr
+mkVector m nam i =
+    let
+        indices = [ i ]
+    in
+        if  checkIndicesInManifold m indices
+            then
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = nam
+                                               , manifold            = m
+                                               , tensorType          = General
+                                               , slots               = indices
+                                               , symmetry            = oneIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
+            else error ("index error defining metric " ++ nam)
+
+
+mkVector_ :: Manifold
+          -> String
+          -> String
+          -> VarIndex
+          -> Expr
+mkVector_ m nam teXNam i =
+    let
+        indices = [ i ]
+    in
+        if  checkIndicesInManifold m indices
+            then
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = teXNam
+                                               , manifold            = m
+                                               , tensorType          = General
+                                               , slots               = indices
+                                               , symmetry            = oneIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
             else error ("index error defining metric " ++ nam)
 
                          
@@ -314,16 +363,18 @@ mkKroneckerDelta m nam i1@(Covariant _) i2@(Contravariant _) =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = nextId
-                                     , tensorName          = nam
-                                     , tensorTeXName       = nam
-                                     , manifold            = m
-                                     , tensorType          = KroneckerDelta
-                                     , slots               = indices
-                                     , symmetry            = symmetricTwoIndex
-                                     , tensorComplexity    = Real
-                                     , tensorCommutativity = Commuting
-                                     , components          = Nothing }
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = nam
+                                               , manifold            = m
+                                               , tensorType          = KroneckerDelta
+                                               , slots               = indices
+                                               , symmetry            = symmetricTwoIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
             else error ("Kronecker delta indices are not all in manifold " ++ name m)
 mkKroneckerDelta _ _ _ _ = error "Kronecker delta must have ordered Covariant, Contravariant indices "
                           
@@ -340,16 +391,18 @@ mkKroneckerDelta_ m nam teXNam i1@(Covariant _) i2@(Contravariant _) =
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = nextId
-                                     , tensorName          = nam
-                                     , tensorTeXName       = teXNam
-                                     , manifold            = m
-                                     , tensorType          = KroneckerDelta
-                                     , slots               = indices
-                                     , symmetry            = symmetricTwoIndex
-                                     , tensorComplexity    = Real
-                                     , tensorCommutativity = Commuting
-                                     , components          = Nothing }
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = teXNam
+                                               , manifold            = m
+                                               , tensorType          = KroneckerDelta
+                                               , slots               = indices
+                                               , symmetry            = symmetricTwoIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
             else error ("Kronecker delta indices are not all in manifold " ++ name m)
 mkKroneckerDelta_ _ _ _ _ _ = error "Kronecker delta must have ordered Covariant, Contravariant indices "
 
@@ -367,16 +420,18 @@ mkLeviCivita m nam i1@(Contravariant _) i2@(Contravariant _) i3@(Contravariant _
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = nextId
-                                     , tensorName          = nam
-                                     , tensorTeXName       = nam
-                                     , manifold            = m
-                                     , tensorType          = LeviCivita
-                                     , slots               = indices
-                                     , symmetry            = antisymmetricFourIndex
-                                     , tensorComplexity    = Real
-                                     , tensorCommutativity = Commuting
-                                     , components          = Nothing }
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = nam
+                                               , manifold            = m
+                                               , tensorType          = LeviCivita
+                                               , slots               = indices
+                                               , symmetry            = antisymmetricFourIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
             else error ("Levi-Civita indices are not all in manifold " ++ name m)
 mkLeviCivita _ _ _ _ _ _ = error "Levi-Civita must have all Covariant indices "
                           
@@ -396,16 +451,18 @@ mkLeviCivita_ m nam teXNam i1@(Contravariant _) i2@(Contravariant _) i3@(Contrav
     in
         if  checkIndicesInManifold m indices
             then
-                Symbol $ Tensor T { tensorIdentifier    = nextId
-                                     , tensorName          = nam
-                                     , tensorTeXName       = teXNam
-                                     , manifold            = m
-                                     , tensorType          = LeviCivita
-                                     , slots               = indices
-                                     , symmetry            = antisymmetricFourIndex
-                                     , tensorComplexity    = Real
-                                     , tensorCommutativity = Commuting
-                                     , components          = Nothing }
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = teXNam
+                                               , manifold            = m
+                                               , tensorType          = LeviCivita
+                                               , slots               = indices
+                                               , symmetry            = antisymmetricFourIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
             else error ("Levi-Civita indices are not all in manifold " ++ name m)
 mkLeviCivita_ _ _ _ _ _ _ _ = error "Levi-Civita must have all Covariant indices "
                           

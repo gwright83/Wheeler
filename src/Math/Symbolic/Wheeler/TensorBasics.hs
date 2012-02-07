@@ -10,7 +10,6 @@
 module Math.Symbolic.Wheeler.TensorBasics where
 
 
---import Data.Either
 import Data.List
 
 
