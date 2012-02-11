@@ -28,6 +28,8 @@ Library
     Math.Symbolic.Wheeler.Tensor
     Math.Symbolic.Wheeler.TensorBasics
     Math.Symbolic.Wheeler.TensorUtilities
+    Math.Symbolic.Wheeler.DiracSpinor
+    Math.Symbolic.Wheeler.Minkowski
 
     Math.Symbolic.Wheeler.Annotation
     Math.Symbolic.Wheeler.Complexity

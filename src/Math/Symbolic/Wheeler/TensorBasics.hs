@@ -64,9 +64,10 @@ getIndices Undefined     = []
 
 
 getSymbolIndices :: Symbol -> [ VarIndex ]
-getSymbolIndices (Simple _)  = []
-getSymbolIndices (Indexed _) = []
-getSymbolIndices (Tensor t)  = slots t
+getSymbolIndices (Simple _)      = []
+getSymbolIndices (Indexed _)     = []
+getSymbolIndices (Tensor t)      = slots t
+getSymbolIndices (DiracSpinor _) = []
 
 
 -- Partition a list of indices into the free indices, and the
