@@ -58,8 +58,12 @@ data T = T {
 -- use a unique ID here?  How should tensors with the same
 -- name but different indices be distinguished?
 --
+-- 11 Feb 2012 updated to compare the tensorName (should
+-- that field be renamed "kernel symbol"?) and the slots.
+--
 instance Eq T where
-    (==) x y = tensorIdentifier x == tensorIdentifier y
+    (==) x y = (tensorName x == tensorName y) &&
+               (slots x == slots y)
 
 instance Ord T where
     compare _ _ = GT
