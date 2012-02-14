@@ -24,7 +24,9 @@ module Math.Symbolic.Wheeler.Canonicalize (
 import Data.List
 import Data.Maybe
 import Data.Ratio
+import Debug.Trace
 
+import Math.Symbolic.Wheeler.Debug
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
 import Math.Symbolic.Wheeler.NumericRational
@@ -34,7 +36,7 @@ import Math.Symbolic.Wheeler.SumOrd
 canonicalize :: Expr -> Expr
 canonicalize c@(Const _)   = simplifyConstant c
 canonicalize s@(Symbol _)  = s
-canonicalize (Product x)   = simplifyProduct (Product (map canonicalize x))
+canonicalize (Product x)   = traceCall "simplifyProduct" simplifyProduct (Product (map canonicalize x))
 canonicalize (Power b e)   = simplifyPower (Power (canonicalize b) (canonicalize e))
 canonicalize (Sum x)       = simplifySum (Sum (map canonicalize x))
 canonicalize (Applic f a)  = simplifyFunction (Applic f (canonicalize a))
@@ -102,15 +104,15 @@ simplifyProduct (Product fs) = sp (fs)
                     simplifyProduct' (x : []) = x
                     simplifyProduct' xs       = Product xs
                 in
-                    simplifyProduct' (simplifyFactors fs')
+                    traceCall "simplifyProduct'" simplifyProduct' (traceCall "simplifyFactors" simplifyFactors fs')
 simplifyProduct _ = error "simplifyProduct applied to non-product expression"
     
 
 simplifyFactors :: [ Expr ] -> [ Expr ]
 simplifyFactors []                              = []
-simplifyFactors (Product fs : Product fs' : []) = mergeFactors fs  fs'
-simplifyFactors (Product fs : u : [])           = mergeFactors fs [ u ]
-simplifyFactors (u : Product fs : [])           = mergeFactors [u] fs
+simplifyFactors (Product fs : Product fs' : []) = traceCall2 "mergeFactors (1)" mergeFactors fs  fs'
+simplifyFactors (Product fs : u : [])           = traceCall2 "mergeFactors (2)" mergeFactors fs [ u ]
+simplifyFactors (u : Product fs : [])           = traceCall2 "mergeFactors (3)" mergeFactors [u] fs
 simplifyFactors p@(Const (I n) : Sum ts : [])
     | n == -1   =
         let
@@ -142,7 +144,7 @@ simplifyFactors (u : us) =
         factorList (Product vs) = vs
         factorList x = [ x ]
     in
-        mergeFactors (factorList u) w
+        traceCall2 "mergeFactors (4)" mergeFactors (factorList u) w
 
 
 mergeFactors :: [ Expr ] -> [ Expr ] -> [ Expr ]
@@ -153,16 +155,16 @@ mergeFactors p q =
     let
         p' = groupFactors p
         q' = groupFactors q
-        f  = findCorrespondingFactors p' q'
+        f  = traceCall2 "findCorrespondingFactors" findCorrespondingFactors p' q'
 
         c = lookup [] f
         n = deleteBy (\(x, (_, _)) (y, (_, _)) -> x == y) ([], (undefined, undefined)) f
         (_, (c', c'')) = if isJust c then ([], fromJust c) else ([], ([],[]))
         mergedCommuting = mergeCommutingFactors c' c''
 
-        mergedNoncommuting = map (\(_, (y, z)) -> mergeNoncommutingFactors y z) n
+        mergedNoncommuting = map (\(_, (y, z)) -> traceCall2 "mergeNoncommutingFactors" mergeNoncommutingFactors y z) n
     in
-        mergedCommuting ++ concat mergedNoncommuting
+        mergedCommuting ++ concat ((\x -> trace ("mergedNonCommuting " ++ show x) x) mergedNoncommuting)
 
 
 -- This is the orginal definition of factor merge for commuting factors:
@@ -213,7 +215,9 @@ mergeNoncommutingFactors p   q =
                             else mergeNoncommutingFactors ps (q' : p' : qs)
 
 
-
+-- XXX FIXME XXX
+-- This function doesn't work properly.
+--
 findCorrespondingFactors :: [ ([ String ], [ Expr ]) ]
                   -> [ ([ String ], [ Expr ]) ]
                   -> [ ([ String ], ([ Expr ], [ Expr ])) ]
@@ -228,8 +232,8 @@ findCorrespondingFactors (p : ps) qs =
                   else qs
     in
         if isJust c
-            then (\(x, y) z -> (x, (y, z))) p (fromJust c) : findCorrespondingFactors ps qs'
-            else findCorrespondingFactors ps qs'
+            then (\(x, y) z -> (x, (y, z ))) p (fromJust c) : findCorrespondingFactors ps qs'
+            else (\(x, y)   -> (x, (y, []))) p              : findCorrespondingFactors ps qs'
 
 
 -- Group the factors in an expression list by representation
