@@ -62,7 +62,8 @@ data T = T {
 -- that field be renamed "kernel symbol"?) and the slots.
 --
 instance Eq T where
-    (==) x y = (tensorName x == tensorName y) &&
+    (==) x y = (mainfold x == manifold y)     &&
+               (tensorName x == tensorName y) &&
                (slots x == slots y)
 
 instance Ord T where
@@ -159,6 +160,13 @@ instance Ord Idx where
     compare (Component m) (Component n) = compare m n
 
 
+-- IndexType keeps track of indices that are recognized
+-- explicitly to be dummies.
+--
+data IndexType = Regular
+               | ExplicitDummy
+    deriving (Eq, Show)
+
 -- The IndexName is the textual representation of the index.
 -- The indexName field is the unique identifier of the index
 -- (since it is used to define the Eq instance of the type).
@@ -166,12 +174,14 @@ instance Ord Idx where
 data Index = Index {
    indexManifold :: Manifold,
    indexName     :: String,
-   indexTeXName  :: String
+   indexTeXName  :: String,
+   indexType     :: IndexType
 } deriving Show
 
 instance Eq Index where
     (==) m n = ((indexManifold m) == (indexManifold n)) &&
-               ((indexName m)     == (indexName n))
+               ((indexName m)     == (indexName n))     &&
+               ((indexType m)     == (indexType n))
 
 instance Ord Index where
     compare m n = compare (indexName m) (indexName n)
@@ -179,6 +189,15 @@ instance Ord Index where
 instance Named Index where
     name    = indexName
     teXName = indexTeXName
+
+
+-- Extract the manifold of a variant index:
+--
+varIndexManifold :: VarIndex -> Manifold
+varIndexManifold (Covariant     (Abstract i)) = indexManifold i
+varIndexManifold (Contravariant (Abstract i)) = indexManifold i
+varIndexManifold (Covariant     (Component _)) = undefined
+varIndexManifold (Contravariant (Component _)) = undefined
 
 
 -- A simple operator to toggle the variance.
@@ -202,7 +221,7 @@ instance Num VarIndex where
 
 
 -- The Signature is the signature of a symmetric matrix.
--- The signaure of an antisymmetric metric can be determined
+-- The signature of an antisymmetric metric can be determined
 -- just from the dimension, since the eigenvalues of an
 -- antisymmetric matrix occur in pairs +/- i * lambda,
 -- with lambda real.

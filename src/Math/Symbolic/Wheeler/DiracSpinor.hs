@@ -11,7 +11,8 @@ module Math.Symbolic.Wheeler.DiracSpinor (
     diracConjugate,
     diracGamma_,
     diracSpinor_,
-    diracSlash_
+    diracSlash_,
+    isConjugated
 ) where
 
 
@@ -50,11 +51,14 @@ instance Identified D where
     identifier = diracIdentifier
 
 instance Show D where
-    showsPrec _ s = showString (diracSpinorName s)
+    showsPrec _ s = if isConjugated s
+                       then showString "(diracConjugate "  .
+                            showString (diracSpinorName s) .
+                            showString ")"
+                       else showString (diracSpinorName s)
 
 instance Commutable D where
     commutativity = diracCommutativity
-
 
 
 diracConjugate :: Expr -> Expr
@@ -63,7 +67,12 @@ diracConjugate (Symbol (DiracSpinor s)) =
         then Symbol $ DiracSpinor $ s { diracConjugacy = Unconjugated }
         else Symbol $ DiracSpinor $ s { diracConjugacy = Conjugated }
 diracConjugate _ = error "diracConjugate applied to non-diracSpinor"
-           
+
+
+isConjugated :: D -> Bool
+isConjugated s = diracConjugacy s == Conjugated
+
+
 -- A Dirac gamma matrix in four dimensions.
 --
 diracGamma_ :: RepSpace -> VarIndex -> Expr

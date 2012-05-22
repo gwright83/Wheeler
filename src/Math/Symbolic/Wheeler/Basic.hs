@@ -10,10 +10,8 @@ module Math.Symbolic.Wheeler.Basic where
 import Data.List
 
 
-import Math.Symbolic.Wheeler.Expr
+import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
---import Math.Symbolic.Wheeler.IO
---import Math.Symbolic.Wheeler.Canonicalize
 
 
 
@@ -39,8 +37,10 @@ factors e            = [e]
 -- for noncommutative factors.
 --
 expand :: Expr -> Expr
-expand s@(Sum (t : _))     = (expand t) + expand (s - t)
-expand p@(Product (f : _)) = expandProduct (expand f) (expand ((1 / f) * p))
+expand (Sum (t : []))     = expand t
+expand (Sum (t : ts))     = (expand t) + (expand (Sum ts))
+expand (Product (f : [])) = expand f
+expand (Product (f : fs)) = expandProduct (expand f) (expand (Product fs))
 expand p@(Power b (Const (I n)))
     | n >= 2               = expandPower (expand b) n
     | otherwise            = p
@@ -53,12 +53,14 @@ expand e                   = e
 -- does not.
 --
 expandProduct :: Expr -> Expr -> Expr
-expandProduct r@(Sum (t : _)) s = (expandProduct t s) + expandProduct (r - t) s
-expandProduct r s@(Sum (t : _)) = (expandProduct r t) + expandProduct r (s - t)
-expandProduct r s               = let
-                                     u = r * s
-                                  in
-                                     if hasSum (variables u) then expand u else u
+expandProduct (Sum (t : [])) s = expandProduct t s
+expandProduct (Sum (t : ts)) s = (expandProduct t s) + expandProduct (Sum ts) s
+expandProduct r (Sum (t : [])) = expandProduct r t
+expandProduct r (Sum (t : ts)) = (expandProduct r t) + expandProduct r (Sum ts)
+expandProduct r s              = let
+                                    u = r * s
+                                 in
+                                    if hasSum (variables u) then expand u else u
 
 
 expandPower :: Expr -> Integer -> Expr

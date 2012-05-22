@@ -1,5 +1,5 @@
 --
--- Canonicalize.hs
+-- CanonicalizeDebug.hs
 --
 -- Transform an expression into canonical form.  This is essentially
 -- a simplification, but the real goal is that identical expressions
@@ -8,7 +8,7 @@
 -- Gregory Wright, 27 April 2011
 --
 
-module Math.Symbolic.Wheeler.Canonicalize (
+module Math.Symbolic.Wheeler.CanonicalizeDebug (
        canonicalize,
        simplifySum,
        simplifyProduct,
@@ -24,7 +24,9 @@ module Math.Symbolic.Wheeler.Canonicalize (
 import Data.List
 import Data.Maybe
 import Data.Ratio
+import Debug.Trace
 
+import Math.Symbolic.Wheeler.Debug
 import Math.Symbolic.Wheeler.DummyIndices
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
@@ -40,7 +42,7 @@ canonicalize = canonicalize' . canonicalizeTensorExpr
 canonicalize' :: Expr -> Expr
 canonicalize' c@(Const _)   = simplifyConstant c
 canonicalize' s@(Symbol _)  = s
-canonicalize' (Product x)   = simplifyProduct (Product (map canonicalize' x))
+canonicalize' (Product x)   = traceCall "simplifyProduct" simplifyProduct (Product (map canonicalize' x))
 canonicalize' (Power b e)   = simplifyPower (Power (canonicalize' b) (canonicalize' e))
 canonicalize' (Sum x)       = simplifySum (Sum (map canonicalize' x))
 canonicalize' (Applic f a)  = simplifyFunction (Applic f (canonicalize' a))
@@ -113,15 +115,15 @@ simplifyProduct (Product fs) = sp (fs)
                     simplifyProduct' (x : []) = x
                     simplifyProduct' xs       = Product xs
                 in
-                    simplifyProduct' (simplifyFactors fs')
+                    traceCall "simplifyProduct'" simplifyProduct' (traceCall "simplifyFactors" simplifyFactors fs')
 simplifyProduct _ = error "simplifyProduct applied to non-product expression"
     
 
 simplifyFactors :: [ Expr ] -> [ Expr ]
 simplifyFactors []                              = []
-simplifyFactors (Product fs : Product fs' : []) = mergeFactors fs  fs'
-simplifyFactors (Product fs : u : [])           = mergeFactors fs [ u ]
-simplifyFactors (u : Product fs : [])           = mergeFactors [u] fs
+simplifyFactors (Product fs : Product fs' : []) = traceCall2 "mergeFactors (1)" mergeFactors fs  fs'
+simplifyFactors (Product fs : u : [])           = traceCall2 "mergeFactors (2)" mergeFactors fs [ u ]
+simplifyFactors (u : Product fs : [])           = traceCall2 "mergeFactors (3)" mergeFactors [u] fs
 simplifyFactors p@(Const (I n) : Sum ts : [])
     | n == -1   =
         let
@@ -153,7 +155,7 @@ simplifyFactors (u : us) =
         factorList (Product vs) = vs
         factorList x = [ x ]
     in
-        mergeFactors (factorList u) w
+        traceCall2 "mergeFactors (4)" mergeFactors (factorList u) w
 
 
 mergeFactors :: [ Expr ] -> [ Expr ] -> [ Expr ]
@@ -164,16 +166,16 @@ mergeFactors p q =
     let
         p' = groupFactors p
         q' = groupFactors q
-        f  = findCorrespondingFactors p' q'
+        f  = traceCall2 "findCorrespondingFactors" findCorrespondingFactors p' q'
 
         c = lookup [] f
         n = deleteBy (\(x, (_, _)) (y, (_, _)) -> x == y) ([], (undefined, undefined)) f
         (_, (c', c'')) = if isJust c then ([], fromJust c) else ([], ([],[]))
         mergedCommuting = mergeCommutingFactors c' c''
 
-        mergedNoncommuting = map (\(_, (y, z)) -> mergeNoncommutingFactors y z) n
+        mergedNoncommuting = map (\(_, (y, z)) -> traceCall2 "mergeNoncommutingFactors" mergeNoncommutingFactors y z) n
     in
-        mergedCommuting ++ concat mergedNoncommuting
+        mergedCommuting ++ concat ((\x -> trace ("mergedNonCommuting " ++ show x) x) mergedNoncommuting)
 
 
 -- This is the orginal definition of factor merge for commuting factors:

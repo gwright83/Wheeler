@@ -10,7 +10,8 @@
 module Math.Symbolic.Wheeler.UniqueID (
     Id,
     Identified (..),
-    nextId
+    nextId,
+    nextDummy
 ) where
 
 
@@ -21,14 +22,27 @@ class Identified a where
     identifier :: a -> Id
 
 
--- initialize the supply of unique IDs:
+-- Initialize the supply of unique IDs:
 --
 identifiers :: IO IdSupply
 identifiers = initIdSupply 's'
 
 
--- produce the next identifier:
+-- Produce the next identifier:
 --
 nextId :: IO Id
 nextId = do
     return . idFromSupply =<< identifiers
+
+
+dummyIdentifiers :: IO IdSupply
+dummyIdentifiers = initIdSupply 'd'
+
+
+-- Produce the next dummy identifier:
+--
+nextDummy :: IO Id
+nextDummy = do
+    return . idFromSupply =<< dummyIdentifiers
+
+
