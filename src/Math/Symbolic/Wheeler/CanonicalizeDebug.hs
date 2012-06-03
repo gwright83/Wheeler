@@ -190,10 +190,10 @@ mergeCommutingFactors []  q = q
 mergeCommutingFactors p  [] = p
 mergeCommutingFactors pp@(p : ps) qq@(q : qs) =
     let
-        h = simplifyFactors [p, q]
+        h = traceCall "simplifyFactors (mcf)" simplifyFactors [p, q]
     in
         if null h
-            then mergeCommutingFactors ps qs
+            then traceCall2 "mcf" mergeCommutingFactors ps qs
             else if null (tail h)
                     then (head h) : mergeCommutingFactors ps qs
                     else if head h == p

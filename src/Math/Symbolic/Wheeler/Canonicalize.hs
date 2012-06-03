@@ -1,5 +1,5 @@
 --
--- Canonicalize.hs
+-- CanonicalizeDebug.hs
 --
 -- Transform an expression into canonical form.  This is essentially
 -- a simplification, but the real goal is that identical expressions
@@ -25,6 +25,7 @@ import Data.List
 import Data.Maybe
 import Data.Ratio
 
+import Math.Symbolic.Wheeler.Debug
 import Math.Symbolic.Wheeler.DummyIndices
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric

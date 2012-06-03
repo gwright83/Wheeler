@@ -31,6 +31,7 @@ Library
     Math.Symbolic.Wheeler.TensorBasics
     Math.Symbolic.Wheeler.TensorUtilities
     Math.Symbolic.Wheeler.DiracSpinor
+    Math.Symbolic.Wheeler.MetricTensor
     Math.Symbolic.Wheeler.Minkowski
 
     Math.Symbolic.Wheeler.Annotation

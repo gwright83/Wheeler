@@ -9,8 +9,15 @@
 
 
 module Math.Symbolic.Wheeler.DummyIndices (
-    uniqueDummies,
-    uniqueDummies_
+  Breadcrumbs,
+  Cxt (..),
+  IndexList,
+  IndexTrail,
+  collectIndices,
+  collectIndices_,
+  replaceIndex,
+  uniqueDummies,
+  uniqueDummies_
 ) where
 
 
@@ -76,7 +83,7 @@ collectIndices e = map (sortBy (comparing (length . snd)))     $
 
 
 collectIndices_ :: Expr -> [ IndexList ]
-collectIndices_ e = map (sortBy (comparing (length . snd)))     $
+collectIndices_ e = map (sortBy (comparing (length . snd)))    $
                    groupBy (equalling (toContravariant . fst)) $
                    sortBy  (comparing (toContravariant . fst)) $ fi [] [] e
     where

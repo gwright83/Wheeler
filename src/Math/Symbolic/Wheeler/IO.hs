@@ -19,6 +19,7 @@ import qualified Text.Parsec.Token as P
 
 
 import Math.Symbolic.Wheeler.Canonicalize
+--import Math.Symbolic.Wheeler.CanonicalizeDebug
 import Math.Symbolic.Wheeler.Function
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric

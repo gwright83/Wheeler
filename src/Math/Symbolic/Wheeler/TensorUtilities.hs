@@ -9,6 +9,8 @@
 module Math.Symbolic.Wheeler.TensorUtilities where
 
 
+import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
+import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.UniqueID
 
@@ -64,3 +66,23 @@ isDummy :: VarIndex -> Bool
 isDummy (Covariant     (Abstract i)) = indexType i == ExplicitDummy
 isDummy (Contravariant (Abstract i)) = indexType i == ExplicitDummy
 isDummy _ = False
+
+
+-- is a tensor a metric, Kronecker delta or Levi-Civita symbol?
+--
+isMetric :: Expr -> Bool
+isMetric (Symbol (Tensor t)) = tensorType t == Metric
+isMetric _ = False
+
+isKroneckerDelta :: Expr -> Bool
+isKroneckerDelta (Symbol (Tensor t)) = tensorType t == KroneckerDelta
+isKroneckerDelta _ = False
+
+isLeviCivita :: Expr -> Bool
+isLeviCivita (Symbol (Tensor t)) = tensorType t == LeviCivita
+isLeviCivita _ = False
+
+tensorIndices :: Expr -> [ VarIndex ]
+tensorIndices (Symbol (Tensor t)) = slots t
+tensorIndices _ = []
+

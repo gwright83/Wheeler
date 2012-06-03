@@ -30,6 +30,7 @@ import System.IO.Unsafe
 
 
 import Math.Symbolic.Wheeler.Canonicalize
+--import Math.Symbolic.Wheeler.CanonicalizeDebug
 import Math.Symbolic.Wheeler.Complexity
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Function

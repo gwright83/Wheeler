@@ -62,12 +62,16 @@ data T = T {
 -- that field be renamed "kernel symbol"?) and the slots.
 --
 instance Eq T where
-    (==) x y = (mainfold x == manifold y)     &&
+    (==) x y = (manifold x == manifold y)     &&
                (tensorName x == tensorName y) &&
                (slots x == slots y)
 
 instance Ord T where
-    compare _ _ = GT
+    compare x y = if isCommuting x || isCommuting y 
+                    then if tensorName x /= tensorName y
+                            then compare (tensorName x) (tensorName y)
+                            else compare (slots x) (slots y)
+                    else GT
 
 instance Named T where
     name    = tensorName
@@ -109,6 +113,7 @@ data TensorType = General
                 | Metric
                 | KroneckerDelta
                 | LeviCivita
+                deriving (Eq, Show)
 
 
 -- A slot is either occupied by covariant index (indicating

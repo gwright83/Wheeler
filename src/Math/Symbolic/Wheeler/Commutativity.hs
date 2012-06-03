@@ -11,6 +11,7 @@ module Math.Symbolic.Wheeler.Commutativity (
     Commutativity (..),
     RepSpace (..),
     repSpace,
+    isCommuting,
     isNonCommuting
 ) where
 
@@ -31,6 +32,8 @@ repSpace x = rep (commutativity x)
          rep Commuting                   = Nothing
          rep (NonCommuting (RepSpace s)) = Just s
 
+isCommuting :: (Commutable a) => a -> Bool
+isCommuting = not . isNonCommuting
 
 isNonCommuting :: (Commutable a) => a -> Bool
 isNonCommuting x = nc (commutativity x)
@@ -38,4 +41,4 @@ isNonCommuting x = nc (commutativity x)
          nc :: Commutativity -> Bool
          nc (NonCommuting (RepSpace _)) = True
          nc Commuting                   = False
-
+         

@@ -74,13 +74,21 @@ instance Commutable Symbol where
 
 instance Ord Symbol where
     compare (Simple x)  (Simple y)           = compare x y
-    compare (Simple _)  _                    = GT
+    compare (Simple _)  (Indexed _)          = LT
+    compare (Simple _)  (Tensor _)           = LT
+    compare (Simple _)  (DiracSpinor _)      = LT
+    compare (Indexed _) (Simple _)           = GT
     compare (Indexed x) (Indexed y)          = compare x y
-    compare (Indexed _) _                    = GT
+    compare (Indexed x) (Tensor y)           = compare (name x) (name y)
+    compare (Indexed x) (DiracSpinor y)      = compare (name x) (name y)
+    compare (Tensor _)  (Simple _)           = GT
+    compare (Tensor x)  (Indexed y)          = compare (name x) (name y)
     compare (Tensor x)  (Tensor y)           = compare x y
-    compare (Tensor _)  _                    = GT
-    compare (DiracSpinor x)  (DiracSpinor y) = compare x y
-    compare (DiracSpinor  _)  _              = GT
+    compare (Tensor _)  (DiracSpinor _)      = GT
+    compare (DiracSpinor _) (Simple _)       = GT
+    compare (DiracSpinor x) (Indexed y)      = compare (name x) (name y)
+    compare (DiracSpinor _) (Tensor _)       = GT
+    compare (DiracSpinor x) (DiracSpinor y)  = compare x y
 
 instance SumOrd Symbol where
     sumCompare (Simple x) (Simple y)           = compare (name x) (name y)

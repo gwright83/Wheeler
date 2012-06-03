@@ -79,7 +79,7 @@ expandPower u n = Power u (Const (I n))
 
 -- Moderately efficient implementation of the factorial
 -- function:
-
+--
 fact :: Integer -> Integer
 fact n = fact' n 1
     where
