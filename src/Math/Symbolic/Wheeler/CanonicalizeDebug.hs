@@ -100,37 +100,35 @@ simplifyConstant _                 = error "simplifyConstant applied to non-cons
 -- p. 98.
 
 simplifyProduct :: Expr -> Expr
-simplifyProduct (Product fs) = sp (fs)
-    where
-        sp fs'
-            | null fs'                = Const 1
-            | elem Undefined fs'      = Undefined
-            | any isDivideByZero fs'  = Undefined
-            | elem (Const 0) fs'      = Const 0
-            | null (tail fs')         = head fs'
-            | otherwise               =
-                let
-                    simplifyProduct' :: [ Expr ] -> Expr
-                    simplifyProduct' []       = Const 1
-                    simplifyProduct' (x : []) = x
-                    simplifyProduct' xs       = Product xs
-                in
-                    traceCall "simplifyProduct'" simplifyProduct' (traceCall "simplifyFactors" simplifyFactors fs')
+simplifyProduct (Product fs)
+  | elem Undefined fs      = Undefined
+  | any isDivideByZero fs  = Undefined
+  | elem (Const 0) fs      = Const 0
+  | null (tail fs)         = head fs
+  | otherwise              =
+    let
+      simplifyProduct' :: [ Expr ] -> Expr
+      simplifyProduct' []       = Const 1
+      simplifyProduct' (x : []) = x
+      simplifyProduct' xs       = Product xs
+    in
+     traceCall "simplifyProduct'" simplifyProduct' (traceCall "simplifyFactors" simplifyFactors fs)
 simplifyProduct _ = error "simplifyProduct applied to non-product expression"
     
 
 simplifyFactors :: [ Expr ] -> [ Expr ]
 simplifyFactors []                              = []
 simplifyFactors (Product fs : Product fs' : []) = traceCall2 "mergeFactors (1)" mergeFactors fs  fs'
-simplifyFactors (Product fs : u : [])           = traceCall2 "mergeFactors (2)" mergeFactors fs [ u ]
+simplifyFactors (Product fs : u : [])           = traceCall2 "mergeFactors (2)" mergeFactors fs [u]
 simplifyFactors (u : Product fs : [])           = traceCall2 "mergeFactors (3)" mergeFactors [u] fs
-simplifyFactors p@(Const (I n) : Sum ts : [])
-    | n == -1   =
-        let
-            negate' e = Product [Const (-1), e]
-        in
-            [simplifySum (Sum (map negate' ts))]
-    | otherwise = p
+-- simplifyFactors p@(Const (I n) : Sum ts : [])
+--     | n == -1   =
+--         let
+--             negate' e = Product [Const (-1), e]
+--         in
+--             [simplifySum (Sum (map negate' ts))]
+--     | n == 1    = [Sum ts]
+--     | otherwise = p
 simplifyFactors (u1 : u2 : [])
     | isConstant u1 && isConstant u2 =
         let

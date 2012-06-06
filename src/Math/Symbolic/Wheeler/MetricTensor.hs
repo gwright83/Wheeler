@@ -13,6 +13,7 @@ import Data.List
 import Data.Maybe
 
 import Math.Symbolic.Wheeler.Basic
+import Math.Symbolic.Wheeler.Canonicalize
 import Math.Symbolic.Wheeler.DummyIndices
 import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Symbol
@@ -97,18 +98,26 @@ replaceExpr bc e' e = snd $ re bc e' ([], e)
 
 eliminateOneMetric :: Expr -> Expr
 eliminateOneMetric e =  let
-  e'                   = uniqueDummies_ $ expand e
-  metricIndices        = findExpr' isDummyMetric e'
-  (mi: mi' : [])       = tensorIndices $ fst $ fromJust metricIndices
+  metricIndices        = findExpr' isDummyMetric e
+  (mi : mi' : [])      = tensorIndices $ fst $ fromJust metricIndices
   metricLoc            = snd $ fromJust metricIndices
-  exprIndices          = concat $ collectIndices_ e'
+  exprIndices          = concat $ collectIndices_ e
   (oldIndex, newIndex) = if isDummy mi then ((-mi), mi') else ((-mi'), mi)
   indexLoc             = find (\x -> fst x == oldIndex) exprIndices
   in
    if isJust metricIndices && isJust indexLoc
-      then replaceIndex (newIndex, snd $ fromJust indexLoc) (replaceExpr metricLoc (Const 1) e') 
+      then replaceIndex (newIndex, snd $ fromJust indexLoc) (replaceExpr metricLoc (Const 1) e) 
       else e
 
+
+eliminateMetric :: Expr -> Expr
+eliminateMetric e = let
+  e'  = uniqueDummies_ $ expand e
+  ts  = terms e'
+  e'' = map (applyUntilStable eliminateOneMetric) ts
+  in
+   canonicalize (Sum e'')
+   
   
 applyUntilStable :: Eq a => (a -> a) -> a -> a
 applyUntilStable f x

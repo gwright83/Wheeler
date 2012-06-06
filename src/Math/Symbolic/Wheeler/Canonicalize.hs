@@ -1,5 +1,5 @@
 --
--- CanonicalizeDebug.hs
+-- Canonicalize.hs
 --
 -- Transform an expression into canonical form.  This is essentially
 -- a simplification, but the real goal is that identical expressions
@@ -25,7 +25,7 @@ import Data.List
 import Data.Maybe
 import Data.Ratio
 
-import Math.Symbolic.Wheeler.Debug
+--import Math.Symbolic.Wheeler.Debug
 import Math.Symbolic.Wheeler.DummyIndices
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
@@ -123,13 +123,13 @@ simplifyFactors []                              = []
 simplifyFactors (Product fs : Product fs' : []) = mergeFactors fs  fs'
 simplifyFactors (Product fs : u : [])           = mergeFactors fs [ u ]
 simplifyFactors (u : Product fs : [])           = mergeFactors [u] fs
-simplifyFactors p@(Const (I n) : Sum ts : [])
-    | n == -1   =
-        let
-            negate' e = Product [Const (-1), e]
-        in
-            [simplifySum (Sum (map negate' ts))]
-    | otherwise = p
+-- simplifyFactors p@(Const (I n) : Sum ts : [])
+--     | n == -1   =
+--         let
+--             negate' e = Product [Const (-1), e]
+--         in
+--             [simplifySum (Sum (map negate' ts))]
+--     | otherwise = p
 simplifyFactors (u1 : u2 : [])
     | isConstant u1 && isConstant u2 =
         let
