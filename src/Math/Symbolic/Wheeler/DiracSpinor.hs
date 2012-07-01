@@ -38,7 +38,12 @@ data D = D { diracIdentifier     :: Id
            }
 
 instance Eq D where
-    (==) x y = diracIdentifier x == diracIdentifier y
+    (==) x y = diracSpinorName x         == diracSpinorName y &&
+               diracConjugacy x          == diracConjugacy y  &&
+               (diracSpinorMomentum x) i == (diracSpinorMomentum y) i
+               where
+                 (mf, _) = mkManifold "minkowski" 4 minkowski
+                 i = mkIndex mf "i"
 
 instance Ord D where
     compare _ _ = GT

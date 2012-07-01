@@ -29,19 +29,15 @@ import Data.Tuple
 import System.IO.Unsafe (unsafePerformIO)
 
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
+import Math.Symbolic.Wheeler.Matcher
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
 
 
-
 type IndexTrail = (VarIndex, Breadcrumbs)
 type IndexList  = [ IndexTrail ]
 
-data Cxt = Scxt Int | Pcxt Int | Tcxt Int
-     deriving (Eq, Ord, Show)
-
-type Breadcrumbs = [ Cxt ]
 
 data PairPrefix = PairPrefix { commonPrefix :: Breadcrumbs
                              , prefixDiff   :: Cxt

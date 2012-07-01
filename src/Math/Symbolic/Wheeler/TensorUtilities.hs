@@ -9,6 +9,8 @@
 module Math.Symbolic.Wheeler.TensorUtilities where
 
 
+import System.IO.Unsafe
+
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
@@ -27,6 +29,21 @@ mkIndex_ m n texn = Contravariant $ Abstract $ Index { indexManifold = m
                                                      , indexTeXName  = texn
                                                      , indexType     = Regular }
 
+mkPatternIndex :: VarIndex
+mkPatternIndex = Contravariant $ Abstract $ Index { indexManifold = emptyManifold
+                                                  , indexName = ""
+                                                  , indexTeXName = ""
+                                                  , indexType = Pattern }
+                   
+emptyManifold :: Manifold
+emptyManifold =  Manifold { manifoldType           = PatternManifold 
+                          , manifoldName           = ""
+                          , manifoldTeXName        = ""
+                          , manifoldDimension      = 0
+                          , manifoldDimensionDelta = Nothing
+                          , metricity              = NoMetric }
+               
+               
 getIndex :: VarIndex -> Index
 getIndex (Covariant     (Abstract  s)) = s
 getIndex (Covariant     (Component _)) = error "getIndex called on non-abstract index"
@@ -85,4 +102,21 @@ isLeviCivita _ = False
 tensorIndices :: Expr -> [ VarIndex ]
 tensorIndices (Symbol (Tensor t)) = slots t
 tensorIndices _ = []
+
+tensorManifold :: Expr -> Manifold
+tensorManifold (Symbol (Tensor t)) = manifold t
+tensorManifold _ = error "tensorManifold applied to non-tensor expression"
+
+
+-- Take a tensor and replace its indices by dummies
+--
+dummyize :: Expr -> Expr
+dummyize (Symbol (Tensor t)) = Symbol $ Tensor $ t { slots = t' }
+  where
+    m  = manifold t
+    t' = map (\i -> if isContravariant i
+                        then unsafePerformIO $ uniqueDummy m
+                        else - (unsafePerformIO $ uniqueDummy m)) $ slots t
+         
+dummyize e = e
 

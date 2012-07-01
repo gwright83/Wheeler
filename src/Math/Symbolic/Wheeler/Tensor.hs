@@ -102,6 +102,23 @@ type TensorExpr_2      = VarIndex -> VarIndex -> Expr
 type NamedTensorExpr_2 = String -> String -> VarIndex -> VarIndex -> Expr
 
 
+-- A special comparison function to tell if two tensors are
+-- the same, except for the variances of the indices:
+--
+equalUpToVariance :: Expr -> Expr -> Bool
+equalUpToVariance (Symbol (Tensor t)) (Symbol (Tensor t')) = 
+  manifold t   == manifold t' &&
+  tensorName t == tensorName t' &&
+  (and $ zipWith sameButVariance (slots t) (slots t'))
+  where
+    sameButVariance :: VarIndex -> VarIndex -> Bool
+    sameButVariance (Covariant i)     (Covariant i')     = i == i'
+    sameButVariance (Covariant i)     (Contravariant i') = i == i'
+    sameButVariance (Contravariant i) (Covariant i')     = i == i'
+    sameButVariance (Contravariant i) (Contravariant i') = i == i'
+equalUpToVariance _ _ = False  
+  
+  
 -- A short list of tensor types.  The most important thing is to
 -- distinguish the special tensors Metric, LeviCivita and KroneckerDelta
 -- from a general tensor.
@@ -170,6 +187,7 @@ instance Ord Idx where
 --
 data IndexType = Regular
                | ExplicitDummy
+               | Pattern
     deriving (Eq, Show)
 
 -- The IndexName is the textual representation of the index.
@@ -184,9 +202,12 @@ data Index = Index {
 } deriving Show
 
 instance Eq Index where
-    (==) m n = ((indexManifold m) == (indexManifold n)) &&
-               ((indexName m)     == (indexName n))     &&
-               ((indexType m)     == (indexType n))
+    (==) m n = if (indexType m == Pattern && indexType n /= Pattern) ||
+                  (indexType m /= Pattern && indexType n == Pattern)
+                  then True
+                  else ((indexManifold m) == (indexManifold n)) &&
+                       ((indexName m)     == (indexName n))     &&
+                       ((indexType m)     == (indexType n))
 
 instance Ord Index where
     compare m n = compare (indexName m) (indexName n)
@@ -203,6 +224,14 @@ varIndexManifold (Covariant     (Abstract i)) = indexManifold i
 varIndexManifold (Contravariant (Abstract i)) = indexManifold i
 varIndexManifold (Covariant     (Component _)) = undefined
 varIndexManifold (Contravariant (Component _)) = undefined
+
+
+-- Do two indices have the same variance?
+--
+sameVariance :: VarIndex -> VarIndex -> Bool
+sameVariance (Covariant _)     (Covariant _)     = True
+sameVariance (Contravariant _) (Contravariant _) = True
+sameVariance _ _ = False
 
 
 -- A simple operator to toggle the variance.
@@ -246,20 +275,37 @@ euclidean :: Int -> Metricity
 euclidean n = Symmetric (n, 0)
 
 
+data ManifoldType = RegularManifold
+                  | PatternManifold
+                    deriving (Eq, Show)
+                    
+                    
 -- The Manifold record gives the name, dimension and indices
 -- associated with the tangent bundle of the manifold.
 --
 data Manifold = Manifold {
+    manifoldType           :: ManifoldType,
     manifoldName           :: String,
     manifoldTeXName        :: String,
     manifoldDimension      :: Int,
     manifoldDimensionDelta :: Maybe Expr,
     metricity              :: Metricity
-} deriving (Eq, Show)
+} deriving (Show)
 
 instance Named Manifold where
     name    = manifoldName
     teXName = manifoldTeXName
+    
+instance Eq Manifold where
+    (==) m n = if (manifoldType m == PatternManifold  &&
+                   manifoldType n /= PatternManifold) ||
+                  (manifoldType m /= PatternManifold  &&
+                   manifoldType n == PatternManifold)
+                  then True
+                  else manifoldType m      == manifoldType n      &&     
+                       manifoldName m      == manifoldName n      &&
+                       manifoldDimension m == manifoldDimension n &&
+                       metricity m         == metricity n
 
 
 -- mkManifold make a new manifold and possibly a metric
@@ -271,7 +317,8 @@ mkManifold :: String         -- name of the manifold
            -> (Manifold, Maybe NamedTensorExpr_2)
 mkManifold nam dim metr =
     let
-        manif = Manifold { manifoldName           = nam,
+        manif = Manifold { manifoldType           = RegularManifold,
+                           manifoldName           = nam,
                            manifoldTeXName        = nam,
                            manifoldDimension      = dim,
                            manifoldDimensionDelta = Nothing,
@@ -351,7 +398,7 @@ mkVector m nam i =
                                                , tensorComplexity    = Real
                                                , tensorCommutativity = Commuting
                                                , components          = Nothing }
-            else error ("index error defining metric " ++ nam)
+            else error ("index error defining vector " ++ nam)
 
 
 mkVector_ :: Manifold
@@ -377,7 +424,7 @@ mkVector_ m nam teXNam i =
                                                , tensorComplexity    = Real
                                                , tensorCommutativity = Commuting
                                                , components          = Nothing }
-            else error ("index error defining metric " ++ nam)
+            else error ("index error defining vector " ++ nam)
 
                          
 mkKroneckerDelta :: Manifold
@@ -386,6 +433,25 @@ mkKroneckerDelta :: Manifold
                  -> VarIndex
                  -> Expr
 mkKroneckerDelta m nam i1@(Covariant _) i2@(Contravariant _) =
+    let
+        indices = [ i1, i2 ]
+    in
+        if  checkIndicesInManifold m indices
+            then
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = nam
+                                               , manifold            = m
+                                               , tensorType          = KroneckerDelta
+                                               , slots               = indices
+                                               , symmetry            = symmetricTwoIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
+            else error ("Kronecker delta indices are not all in manifold " ++ name m)
+mkKroneckerDelta m nam i1@(Contravariant _) i2@(Covariant _) =
     let
         indices = [ i1, i2 ]
     in
@@ -414,6 +480,25 @@ mkKroneckerDelta_ :: Manifold
                   -> VarIndex
                   -> Expr
 mkKroneckerDelta_ m nam teXNam i1@(Covariant _) i2@(Contravariant _) =
+    let
+        indices = [ i1, i2 ]
+    in
+        if  checkIndicesInManifold m indices
+            then
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = teXNam
+                                               , manifold            = m
+                                               , tensorType          = KroneckerDelta
+                                               , slots               = indices
+                                               , symmetry            = symmetricTwoIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
+            else error ("Kronecker delta indices are not all in manifold " ++ name m)
+mkKroneckerDelta_ m nam teXNam i1@(Contravariant _) i2@(Covariant _) =
     let
         indices = [ i1, i2 ]
     in

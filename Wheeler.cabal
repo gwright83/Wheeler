@@ -24,7 +24,9 @@ Library
     Math.Symbolic.Wheeler.Commutativity
     Math.Symbolic.Wheeler.DummyIndices
     Math.Symbolic.Wheeler.Expr
+    Math.Symbolic.Wheeler.FactorOut
     Math.Symbolic.Wheeler.IO
+    Math.Symbolic.Wheeler.Matcher
     Math.Symbolic.Wheeler.Numeric
     Math.Symbolic.Wheeler.Symbol
     Math.Symbolic.Wheeler.Tensor

@@ -91,6 +91,7 @@ replaceExpr bc e' e = snd $ re bc e' ([], e)
       re targetLoc rexpr (currentLoc, expr) = if currentLoc == targetLoc
                                                   then (currentLoc, rexpr)
                                                   else re' targetLoc rexpr (currentLoc, expr)
+                                                       
       re' targetLoc rexpr (currentLoc, Sum ts)     = (currentLoc, Sum     (zipWith (\n x -> snd (re targetLoc rexpr ((Scxt n) : currentLoc, x))) [1..] ts))
       re' targetLoc rexpr (currentLoc, Product fs) = (currentLoc, Product (zipWith (\n x -> snd (re targetLoc rexpr ((Pcxt n) : currentLoc, x))) [1..] fs))
       re' _ _ u@(_, _) = u

@@ -25,7 +25,6 @@ import Data.List
 import Data.Maybe
 import Data.Ratio
 
---import Math.Symbolic.Wheeler.Debug
 import Math.Symbolic.Wheeler.DummyIndices
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
@@ -123,13 +122,6 @@ simplifyFactors []                              = []
 simplifyFactors (Product fs : Product fs' : []) = mergeFactors fs  fs'
 simplifyFactors (Product fs : u : [])           = mergeFactors fs [ u ]
 simplifyFactors (u : Product fs : [])           = mergeFactors [u] fs
--- simplifyFactors p@(Const (I n) : Sum ts : [])
---     | n == -1   =
---         let
---             negate' e = Product [Const (-1), e]
---         in
---             [simplifySum (Sum (map negate' ts))]
---     | otherwise = p
 simplifyFactors (u1 : u2 : [])
     | isConstant u1 && isConstant u2 =
         let
@@ -349,18 +341,9 @@ simplifyIntegerPower (Power b e@(Const (I _))) = Power b e
 simplifyIntegerPower _ = error "simplifyIntegerPower applied to non-power"
 
 
---reverseNonCommutingFactors :: [ Expr ] -> [ Expr ]
---reverseNonCommutingFactors fs =
---    let
---        fs' = groupFactors fs
---        fs'' = map (\(x, y) -> if null x then (x, y) else (x, reverse y)) fs'
---    in
---        concatMap snd fs''
-
-
 -- 'simplifySum' parallels 'simplyProduct'.  It is outlined but
 -- not completely defined on p. 105 of Cohen.
-
+--
 simplifySum :: Expr -> Expr
 simplifySum (Sum ts)
     | elem Undefined ts = Undefined

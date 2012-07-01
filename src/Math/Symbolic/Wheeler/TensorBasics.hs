@@ -12,8 +12,6 @@ module Math.Symbolic.Wheeler.TensorBasics where
 
 import Data.Maybe
 import Data.List
-import qualified Data.Map as Map
-import System.IO.Unsafe
 
 
 import Math.Symbolic.Wheeler.Basic
@@ -87,8 +85,8 @@ getSymbolIndices (DiracSpinor _) = []
 partitionIndices :: [ VarIndex ] -> ([ VarIndex ], [ VarIndex ])
 partitionIndices is = pindices [] [] is
     where
-        pindices free dummy []       = (free, dummy)
-        pindices free dummy (s : []) = (s : free, dummy)
+        pindices free dummy []       = (sort free, dummy)
+        pindices free dummy (s : []) = (sort (s : free), dummy)
         pindices free dummy (s : ss) =
             if not $ elem (-s) ss
                 then pindices (s : free) dummy ss
@@ -108,7 +106,7 @@ exprIndices = (map partitionIndices) . getIndices
 -- is an error.  Then we check if any indices on the free list are
 -- also in the dummy list.  This can happen, for example, in the
 -- incorrect expression V mu * V(-mu) * V mu.  Finally, we check that
--- every term of the expanded expression has the same index structure.
+-- every term of the expanded expression has the same free index structure.
 --
 data TensorError = RepeatedFreeIndices
                  | BothFreeAndDummy
@@ -134,10 +132,12 @@ checkTensor e =
 
 
 -- Make sure the tensor structure of each
--- term is the same as the first:
+-- term is the same as the first.  The dummy indices
+-- are already known to be paired, so they don't have
+-- to be checked again.
 --
-allSame :: Eq a => [ a ] -> Bool
-allSame i = all ((==) (head i)) (tail i)
+allSame :: Eq a => [ (a, b) ] -> Bool
+allSame i = all (\(x, _) -> x == fst (head i)) (tail i)
 
 
 -- Are any free indices repeated?
@@ -180,71 +180,5 @@ hasCommonElement x y = not (null (intersectBy indexNameEq x y))
         indexNameEq (Covariant i)     (Contravariant j) = i == j
         indexNameEq (Contravariant i) (Covariant j)     = i == j
         indexNameEq (Contravariant i) (Contravariant j) = i == j
-
-
--- makeDummiesUnique takes all dummy indices and replaces them
--- with an internally generated index name guaranteed to be unique.
---
-data Cxt = EmptyCxt | SumCxt [ Int ] | ProdCxt [ Int ]
-     deriving (Eq, Ord, Show)
-
-fidx :: Expr -> Map.Map (VarIndex, Cxt) VarIndex
-fidx e = fi Map.empty EmptyCxt e
-    where
-        fi m cxt (Symbol (Tensor t)) = let
-                                           s = slots t
-                                           pv i m' = let
-                                                      i'  = if isCovariant i then (-i) else i
-                                                      i'' = Map.lookup (i', cxt) m'
-                                                      mf  = varIndexManifold i
-                                                  in
-                                                      if isDummy i
-                                                          then m'
-                                                          else if isJust i''
-                                                              then Map.insert (i', cxt) (unsafePerformIO $ uniqueDummy mf) m'
-                                                              else Map.insert (i', cxt) i' m'
-                                       in
-                                           foldr pv m s
-        fi m _ (Symbol _)            = m
-        fi m EmptyCxt (Product fs)   = foldr (\x m' -> fi m' (ProdCxt []) x) m fs
-        fi m (SumCxt c) (Product fs) = foldr (\x m' -> fi m' (ProdCxt  c) x) m fs
-        fi m cxt (Product fs)        = foldr (\x m' -> fi m' cxt x) m fs
-        fi m EmptyCxt (Sum ts)       = foldr (\(n, x) m' -> fi m' (SumCxt [n]) x) m (zip [1..] ts)
-        fi m (SumCxt c) (Sum ts)     = foldr (\(n, x) m' -> fi m' (SumCxt (n : c)) x) m (zip [1..] ts)
-        fi m cxt (Sum fs)            = foldr (\x m' -> fi m' cxt x) m fs
-        fi m _ (Power _ _)           = m
-        fi m _ (Applic _ _)          = m
-        fi m _ (Const _)             = m
-        fi m _ Undefined             = m
-
-ridx :: Expr -> Map.Map (VarIndex, Cxt) VarIndex -> Expr
-ridx e indexMap = ri indexMap EmptyCxt e
-    where
-        ri m cxt (Symbol (Tensor t)) = let
-                                           s = slots t
-                                           lk i = let
-                                                      i'  = if isCovariant i then (-i) else i
-                                                      i'' = Map.lookup (i', cxt) m
-                                                  in
-                                                      if isJust i''
-                                                          then if isCovariant i then (-(fromJust i'')) else fromJust i''
-                                                          else i
-                                           i''' = map lk s
-                                       in
-                                           Symbol (Tensor (t { slots = i'''} ))
-        ri _ _ s@(Symbol _)          = s
-        ri m EmptyCxt (Product fs)   = Product (map (\x -> ri m (ProdCxt []) x) fs)
-        ri m (SumCxt c) (Product fs) = Product (map (\x -> ri m (ProdCxt  c) x) fs)
-        ri m cxt (Product fs)        = Product (map (\x -> ri m cxt x) fs)
-        ri m EmptyCxt (Sum ts)       = Sum (zipWith (\n x -> ri m (SumCxt [n]) x) [1..] ts)
-        ri m (SumCxt c) (Sum ts)     = Sum (zipWith (\n x -> ri m (SumCxt (n : c)) x) [1..] ts)
-        ri m cxt (Sum ts)            = Sum (map (\x -> ri m cxt x) ts)
-        ri _ _ p@(Power _ _)         = p
-        ri _ _ a@(Applic _ _)        = a
-        ri _ _ c@(Const _)           = c
-        ri _ _ Undefined             = Undefined
-
-makeDummiesUnique :: Expr -> Expr
-makeDummiesUnique x = ridx x (fidx x)
 
 
