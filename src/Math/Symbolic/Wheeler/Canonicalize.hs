@@ -10,14 +10,7 @@
 
 module Math.Symbolic.Wheeler.Canonicalize (
        canonicalize,
-       simplifySum,
-       simplifyProduct,
-       simplifyFactors,
-       groupFactors,
-       mergeCommutingFactors,
-       mergeNoncommutingFactors,
-       findCorrespondingFactors,
-       groupExprs
+       groupFactors
 ) where
 
 

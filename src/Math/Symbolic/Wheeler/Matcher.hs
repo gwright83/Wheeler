@@ -10,6 +10,9 @@
 module Math.Symbolic.Wheeler.Matcher where
 
 
+import Data.List
+
+
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 
 
@@ -64,7 +67,7 @@ match pat ex             = oneMatch pat ex
 --
 oneMatch :: Pattern -> Expr -> Bool
 oneMatch (Rose p ps) s@(Sum ts)     = p s && unorderedMatch ps ts
-oneMatch (Rose p ps) f@(Product fs) = p f && orderedMatch   ps fs
+oneMatch (Rose p ps) f@(Product fs) = p f && infixMatch   ps fs
 oneMatch (Rose p _)  ex             = p ex
 
 
@@ -78,8 +81,10 @@ unorderedMatch :: [ Pattern ] -> [ Expr ] -> Bool
 unorderedMatch [] _       = True
 unorderedMatch _ []       = False
 unorderedMatch (p : ps) y =
-  any (oneMatch p) y &&
-  unorderedMatch ps (deleteAt (oneMatch p) y) 
+  let
+    p' = oneMatch p
+  in
+    any p' y && unorderedMatch ps (deleteAt p' y) 
 
 
 -- orderedMatch is similar to unorderedMatch, but the list
@@ -91,8 +96,30 @@ orderedMatch :: [ Pattern ] -> [ Expr ] -> Bool
 orderedMatch [] _ = True
 orderedMatch _ [] = False
 orderedMatch (p : ps) y =
-  any (oneMatch p) y &&
-  orderedMatch ps (deleteUpTo (oneMatch p) y)
+  let
+    p' = oneMatch p
+  in
+    any p' y && orderedMatch ps (deleteUpTo p' y)
+
+
+-- prefixMatch tests if the patterns match the leading elements
+-- of the list of subject expression.
+--
+prefixMatch :: [ Pattern ] -> [ Expr ] -> Bool  
+prefixMatch [] _ = True
+prefixMatch _ [] = False
+prefixMatch (p : ps) (x : xs) =
+  let
+    p' = oneMatch p 
+  in
+    p' x && prefixMatch ps xs
+
+
+-- infixMatch tests if the patterns match contiguous
+-- elements of the list of subject expressions.
+--
+infixMatch :: [ Pattern ] -> [ Expr ] -> Bool
+infixMatch needle haystack = any (prefixMatch needle) (tails haystack)
 
 
 -- deleteAt is the useful but mysteriously unavailable
