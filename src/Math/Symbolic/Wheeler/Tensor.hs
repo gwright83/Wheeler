@@ -202,8 +202,9 @@ data Index = Index {
 } deriving Show
 
 instance Eq Index where
-    (==) m n = if (indexType m == Pattern && indexType n /= Pattern) ||
-                  (indexType m /= Pattern && indexType n == Pattern)
+    (==) m n = if ((indexType m == Pattern && indexType n /= Pattern)  ||
+                   (indexType m /= Pattern && indexType n == Pattern)) &&
+                   indexName m == indexName n
                   then True
                   else ((indexManifold m) == (indexManifold n)) &&
                        ((indexName m)     == (indexName n))     &&

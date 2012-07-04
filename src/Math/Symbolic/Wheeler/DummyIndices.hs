@@ -9,15 +9,15 @@
 
 
 module Math.Symbolic.Wheeler.DummyIndices (
-  Breadcrumbs,
-  Cxt (..),
   IndexList,
   IndexTrail,
   collectIndices,
   collectIndices_,
+  collectIndices__,
   replaceIndex,
   uniqueDummies,
-  uniqueDummies_
+  uniqueDummies_,
+  uniqueDummies__
 ) where
 
 
@@ -29,7 +29,7 @@ import Data.Tuple
 import System.IO.Unsafe (unsafePerformIO)
 
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
-import Math.Symbolic.Wheeler.Matcher
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
@@ -82,6 +82,20 @@ collectIndices_ :: Expr -> [ IndexList ]
 collectIndices_ e = map (sortBy (comparing (length . snd)))    $
                    groupBy (equalling (toContravariant . fst)) $
                    sortBy  (comparing (toContravariant . fst)) $ fi [] [] e
+    where
+        fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
+        fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
+        fi cxt il (Sum  ts)    = concatMap (\(n, x) -> fi ((Scxt n) : cxt) il x) $ zip [1..] ts
+        fi _   il _            = il
+
+        equalling p x y = (p x) == (p y)
+
+
+collectIndices__ :: Expr -> [ IndexList ]
+collectIndices__ e = map (sortBy (comparing (length . snd)))     $
+                     groupBy (equalling (toContravariant . fst)) $
+                     sortBy  (comparing (toContravariant . fst)) $
+                     filter (not . (\x -> isPattern x || isDummy x) . fst)              $ fi [] [] e
     where
         fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
         fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
@@ -244,3 +258,8 @@ uniqueDummies t = replaceIndices t $ mkReplacements $ collectIndices t
 --
 uniqueDummies_   :: Expr -> Expr
 uniqueDummies_ t = replaceIndices t $ mkReplacements $ collectIndices_ t
+
+-- Top level function that relabels repeated indices, skipping pattern indices
+--
+uniqueDummies__   :: Expr -> Expr
+uniqueDummies__ t = replaceIndices t $ mkReplacements $ collectIndices__ t

@@ -29,11 +29,11 @@ mkIndex_ m n texn = Contravariant $ Abstract $ Index { indexManifold = m
                                                      , indexTeXName  = texn
                                                      , indexType     = Regular }
 
-mkPatternIndex :: VarIndex
-mkPatternIndex = Contravariant $ Abstract $ Index { indexManifold = emptyManifold
-                                                  , indexName = ""
-                                                  , indexTeXName = ""
-                                                  , indexType = Pattern }
+mkPatternIndex :: String -> VarIndex
+mkPatternIndex n = Contravariant $ Abstract $ Index { indexManifold = emptyManifold
+                                                    , indexName = n
+                                                    , indexTeXName = n
+                                                    , indexType = Pattern }
                    
 emptyManifold :: Manifold
 emptyManifold =  Manifold { manifoldType           = PatternManifold 
@@ -83,6 +83,11 @@ isDummy :: VarIndex -> Bool
 isDummy (Covariant     (Abstract i)) = indexType i == ExplicitDummy
 isDummy (Contravariant (Abstract i)) = indexType i == ExplicitDummy
 isDummy _ = False
+
+isPattern :: VarIndex -> Bool
+isPattern (Covariant     (Abstract i)) = indexType i == Pattern
+isPattern (Contravariant (Abstract i)) = indexType i == Pattern
+isPattern _ = False
 
 
 -- is a tensor a metric, Kronecker delta or Levi-Civita symbol?

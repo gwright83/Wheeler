@@ -14,6 +14,7 @@ import Data.Maybe
 
 import Math.Symbolic.Wheeler.Basic
 import Math.Symbolic.Wheeler.Canonicalize
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.DummyIndices
 import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Symbol

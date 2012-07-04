@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XFlexibleInstances #-}
 --
 -- Matcher.hs
 --
@@ -11,9 +12,12 @@ module Math.Symbolic.Wheeler.Matcher where
 
 
 import Data.List
+import Data.Maybe
 
 
-import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
+import Math.Symbolic.Wheeler.Canonicalize
+import Math.Symbolic.Wheeler.Common
+import Math.Symbolic.Wheeler.Expr
 
 
 -- The data structure for patterns is a Rose Tree.  In a
@@ -24,11 +28,6 @@ data Rose a = Rose a [ Rose a ]
 type Pred = Expr -> Bool
 type Pattern = Rose Pred
 
-
-data Cxt = Scxt Int | Pcxt Int | Tcxt Int
-     deriving (Eq, Ord, Show)
-
-type Breadcrumbs = [ Cxt ]
 
 -- Some basic predicates:
 
@@ -47,18 +46,21 @@ isLeafExpr ex = (==) ex
 -- compile turns an Expr into a Pattern 
 --
 compile :: Expr -> Pattern
-compile (Sum ts)       = Rose isSum (map compile ts)
-compile (Product fs)   = Rose isProduct (map compile fs)
-compile ex             = Rose (isLeafExpr ex) []
+compile = compile' . canonicalize
+
+compile' :: Expr -> Pattern
+compile' (Sum ts)       = Rose isSum (map compile ts)
+compile' (Product fs)   = Rose isProduct (map compile fs)
+compile' ex             = Rose (isLeafExpr ex) []
 
 
 -- The match function checks if the pattern expression is contained
 -- anywhere in the subject expression.
 --
 match :: Pattern -> Expr -> Bool
-match pat s@(Sum ts)     = oneMatch pat s || any (match pat) ts
-match pat p@(Product fs) = oneMatch pat p || any (match pat) fs
-match pat ex             = oneMatch pat ex
+match pat s@(Sum ts)     = oneMatch' pat s || any (match pat) ts
+match pat p@(Product fs) = oneMatch' pat p || any (match pat) fs
+match pat ex             = oneMatch' pat ex
 
 
 -- the oneMatch function checks if the pattern expression
@@ -69,6 +71,36 @@ oneMatch :: Pattern -> Expr -> Bool
 oneMatch (Rose p ps) s@(Sum ts)     = p s && unorderedMatch ps ts
 oneMatch (Rose p ps) f@(Product fs) = p f && infixMatch   ps fs
 oneMatch (Rose p _)  ex             = p ex
+
+
+oneMatch' :: Pattern -> Expr -> Bool
+oneMatch' (Rose p ps) s@(Sum ts)     = p s && unorderedMatch ps ts
+oneMatch' (Rose p ps) f@(Product fs) = p f && productMatch   ps fs
+oneMatch' (Rose p _)  ex             = p ex
+
+
+productMatch :: [ Pattern ] -> [ Expr ] -> Bool
+productMatch ps xs =
+  let
+    factorsByRepSpace   = groupFactors xs
+    commutingFactors    = lookup [] factorsByRepSpace
+    noncommutingFactors = concat $ map snd $ filter (not . null . fst) factorsByRepSpace
+    
+    leftoverPatterns    = if isJust commutingFactors
+                          then notMatching ps (fromJust commutingFactors)
+                          else ps
+  in
+    infixMatch leftoverPatterns noncommutingFactors
+
+  
+-- notMatching matches each pattern on the list, returning
+-- the patterns that did not match.
+--
+notMatching :: [ Pattern ] -> [ Expr ] -> [ Pattern ]
+notMatching [] _  = []
+notMatching (p : ps) xs = if any (oneMatch p) xs
+                          then notMatching ps xs
+                          else p : notMatching ps xs
 
 
 -- unorderedMatch asks if each element of the list of the predicate p
@@ -148,11 +180,11 @@ matchAll pat ex = matchAll' [] [] pat ex
                 -> Pattern
                 -> Expr
                 -> [ Breadcrumbs ]
-      matchAll' bc bcs pt s@(Sum ts)     = if oneMatch pt s
+      matchAll' bc bcs pt s@(Sum ts)     = if oneMatch' pt s
                                                then foldr (\(n, x) b -> matchAll' (Scxt n : bc) b pt x) (bc : bcs) (zip [1..] ts)
                                                else foldr (\(n, x) b -> matchAll' (Scxt n : bc) b pt x) bcs (zip [1..] ts)
-      matchAll' bc bcs pt p@(Product fs) = if oneMatch pt p
+      matchAll' bc bcs pt p@(Product fs) = if oneMatch' pt p
                                                then foldr (\(n, x) b -> matchAll' (Pcxt n : bc) b pat x) (bc : bcs) (zip [1..] fs)
                                                else foldr (\(n, x) b -> matchAll' (Pcxt n : bc) b pat x) bcs (zip [1..] fs)
-      matchAll' bc bcs pt e              = if oneMatch pt e then bc : bcs else bcs
+      matchAll' bc bcs pt e              = if oneMatch' pt e then bc : bcs else bcs
 

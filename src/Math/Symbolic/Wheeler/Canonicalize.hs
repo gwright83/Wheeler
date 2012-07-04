@@ -27,8 +27,8 @@ import Math.Symbolic.Wheeler.TensorBasics
 
 
 canonicalize :: Expr -> Expr
-canonicalize = canonicalize' . canonicalizeTensorExpr
---canonicalize = canonicalize'
+canonicalize = canonicalize' . canonicalizeTensorExpr_
+
 
 canonicalize' :: Expr -> Expr
 canonicalize' c@(Const _)   = simplifyConstant c
@@ -42,6 +42,12 @@ canonicalize' Undefined     = Undefined
 canonicalizeTensorExpr :: Expr -> Expr
 canonicalizeTensorExpr e
     | hasTensor e = uniqueDummies e
+    | otherwise   = e
+
+
+canonicalizeTensorExpr_ :: Expr -> Expr
+canonicalizeTensorExpr_ e
+    | hasTensor e = uniqueDummies__ e
     | otherwise   = e
 
 

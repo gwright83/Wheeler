@@ -21,6 +21,7 @@ Library
     Math.Symbolic.Wheeler.Basic
     Math.Symbolic.Wheeler.Canonicalize
     Math.Symbolic.Wheeler.CanonicalizeDebug
+    Math.Symbolic.Wheeler.Common
     Math.Symbolic.Wheeler.Commutativity
     Math.Symbolic.Wheeler.DummyIndices
     Math.Symbolic.Wheeler.Expr
