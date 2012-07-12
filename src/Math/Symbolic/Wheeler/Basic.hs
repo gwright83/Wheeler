@@ -73,7 +73,7 @@ expandPower u@(Sum (t : _)) n =
                    in
                        if hasSum (variables p) then expand p else p
     in
-        foldl (\s k -> s + expandProduct (coeff k * newPow k) (expandPower r k)) 0 [0 .. n]
+        foldl' (\s k -> s + expandProduct (coeff k * newPow k) (expandPower r k)) 0 [0 .. n]
 expandPower u n = Power u (Const (I n))
 
 

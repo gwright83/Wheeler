@@ -201,10 +201,14 @@ data Index = Index {
    indexType     :: IndexType
 } deriving Show
 
+
+-- A empty indexName in a pattern index serves as a wildcard.
+--
 instance Eq Index where
-    (==) m n = if ((indexType m == Pattern && indexType n /= Pattern)  ||
-                   (indexType m /= Pattern && indexType n == Pattern)) &&
-                   indexName m == indexName n
+    (==) m n = if ((indexType m == Pattern && indexType n /= Pattern) &&  
+                   (indexName m == "" || indexName m == indexName n)) ||
+                  ((indexType m /= Pattern && indexType n == Pattern) &&
+                   (indexName n == "" || indexName m == indexName n))
                   then True
                   else ((indexManifold m) == (indexManifold n)) &&
                        ((indexName m)     == (indexName n))     &&

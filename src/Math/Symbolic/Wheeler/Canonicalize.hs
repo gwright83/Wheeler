@@ -129,7 +129,12 @@ simplifyFactors (u1 : u2 : [])
             if p == (Const 1) then [] else [p]
     | isConstantOne u1 = [u2]
     | isConstantOne u2 = [u1]
-    | basePart u1 == basePart u2 =
+                         -- A special case follows:  I don't want tensor expressions to
+                         -- be expressed as powers.  Doing so would particularly
+                         -- mess up canonicalized tensor patterns containing wildcards.
+                         -- After I implement true index patterns this check "not (has Tensor ..."
+                         -- can probably be removed.
+    | (basePart u1 == basePart u2) && not (hasTensor u1 || hasTensor u2) =
         let
             s = simplifySum (Sum [exponentPart u1, exponentPart u2])
             p = simplifyPower (Power (basePart u1) s)
