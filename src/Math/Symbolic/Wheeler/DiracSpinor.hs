@@ -7,7 +7,7 @@
 --
 
 module Math.Symbolic.Wheeler.DiracSpinor (
-    D,
+    D (..),
     diracConjugate,
     diracGamma_,
     diracSpinor_,
@@ -16,12 +16,16 @@ module Math.Symbolic.Wheeler.DiracSpinor (
 ) where
 
 
-import Math.Symbolic.Wheeler
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
+import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Minkowski
 import Math.Symbolic.Wheeler.Named
+import Math.Symbolic.Wheeler.Symbol
+import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorSymmetries
+import Math.Symbolic.Wheeler.TensorUtilities
 import Math.Symbolic.Wheeler.UniqueID
 
 import System.IO.Unsafe
@@ -35,6 +39,7 @@ data D = D { diracIdentifier     :: Id
            , diracSpinorMomentum :: VarIndex -> Expr
            , diracConjugacy      :: Conjugacy
            , diracCommutativity  :: Commutativity
+           , diracSpinorType     :: SymbolType
            }
 
 instance Eq D where
@@ -81,7 +86,6 @@ isConjugated s = diracConjugacy s == Conjugated
 -- A Dirac gamma matrix in four dimensions.
 --
 diracGamma_ :: RepSpace -> VarIndex -> Expr
-
 diracGamma_ r i = 
     let
         indices = [ i ]
@@ -94,7 +98,8 @@ diracGamma_ r i =
                                                , tensorName          = "gamma"
                                                , tensorTeXName       = "\\gamma"
                                                , manifold            = minkowskiManifold
-                                               , tensorType          = General
+                                               , tensorClass         = General
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = oneIndex
                                                , tensorComplexity    = Hermitian
@@ -112,7 +117,8 @@ diracSpinor_ r nam v =
                                         , diracSpinorTeXName  = nam
                                         , diracSpinorMomentum = v
                                         , diracConjugacy      = Unconjugated
-                                        , diracCommutativity  = NonCommuting r }
+                                        , diracCommutativity  = NonCommuting r 
+                                        , diracSpinorType     = Regular }
 
 
 diracSlash_ :: RepSpace -> (VarIndex -> Expr) -> Expr

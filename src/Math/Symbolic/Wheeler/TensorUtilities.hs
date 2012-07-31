@@ -11,6 +11,7 @@ module Math.Symbolic.Wheeler.TensorUtilities where
 
 import System.IO.Unsafe
 
+import Math.Symbolic.Wheeler.Common
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
@@ -21,22 +22,25 @@ mkIndex :: Manifold -> String -> VarIndex
 mkIndex m n = Contravariant $ Abstract $ Index { indexManifold = m
                                                , indexName     = n
                                                , indexTeXName  = n
-                                               , indexType     = Regular }
+                                               , indexType     = Regular 
+                                               , indexIsDummy  = False }
 
 mkIndex_ :: Manifold -> String -> String -> VarIndex
 mkIndex_ m n texn = Contravariant $ Abstract $ Index { indexManifold = m
                                                      , indexName     = n
                                                      , indexTeXName  = texn
-                                                     , indexType     = Regular }
+                                                     , indexType     = Regular 
+                                                     , indexIsDummy  = False}
 
 mkPatternIndex :: String -> VarIndex
 mkPatternIndex n = Contravariant $ Abstract $ Index { indexManifold = emptyManifold
-                                                    , indexName = n
-                                                    , indexTeXName = n
-                                                    , indexType = Pattern }
+                                                    , indexName     = n
+                                                    , indexTeXName  = n
+                                                    , indexType     = Pattern 
+                                                    , indexIsDummy  = False}
                    
 emptyManifold :: Manifold
-emptyManifold =  Manifold { manifoldType           = PatternManifold 
+emptyManifold =  Manifold { manifoldType           = Pattern
                           , manifoldName           = ""
                           , manifoldTeXName        = ""
                           , manifoldDimension      = 0
@@ -60,7 +64,8 @@ uniqueDummy m = do
     return $ Contravariant $ Abstract $ Index { indexManifold = m
                                               , indexName     = show n
                                               , indexTeXName  = show n
-                                              , indexType     = ExplicitDummy }
+                                              , indexType     = Regular
+                                              , indexIsDummy  = True }
 
 
 isCovariant :: VarIndex -> Bool
@@ -80,8 +85,8 @@ toContravariant (Contravariant i) = Contravariant i
 toContravariant (Covariant     i) = Contravariant i
 
 isDummy :: VarIndex -> Bool
-isDummy (Covariant     (Abstract i)) = indexType i == ExplicitDummy
-isDummy (Contravariant (Abstract i)) = indexType i == ExplicitDummy
+isDummy (Covariant     (Abstract i)) = indexIsDummy i
+isDummy (Contravariant (Abstract i)) = indexIsDummy i
 isDummy _ = False
 
 isPattern :: VarIndex -> Bool
@@ -93,15 +98,15 @@ isPattern _ = False
 -- is a tensor a metric, Kronecker delta or Levi-Civita symbol?
 --
 isMetric :: Expr -> Bool
-isMetric (Symbol (Tensor t)) = tensorType t == Metric
+isMetric (Symbol (Tensor t)) = tensorClass t == Metric
 isMetric _ = False
 
 isKroneckerDelta :: Expr -> Bool
-isKroneckerDelta (Symbol (Tensor t)) = tensorType t == KroneckerDelta
+isKroneckerDelta (Symbol (Tensor t)) = tensorClass t == KroneckerDelta
 isKroneckerDelta _ = False
 
 isLeviCivita :: Expr -> Bool
-isLeviCivita (Symbol (Tensor t)) = tensorType t == LeviCivita
+isLeviCivita (Symbol (Tensor t)) = tensorClass t == LeviCivita
 isLeviCivita _ = False
 
 tensorIndices :: Expr -> [ VarIndex ]

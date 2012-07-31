@@ -12,9 +12,10 @@
 module Math.Symbolic.Wheeler.Tensor where
 
 import Data.Maybe
-import Prelude hiding ((^))
+--import Prelude hiding ((^))
 import System.IO.Unsafe
 
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
@@ -46,7 +47,8 @@ data T = T {
      tensorName          :: String,
      tensorTeXName       :: String,
      manifold            :: Manifold,    -- the parent manifold of the tensor field
-     tensorType          :: TensorType,
+     tensorClass         :: TensorClass,
+     tensorType          :: SymbolType,
      slots               :: [ VarIndex ],
      symmetry            :: Symmetry,
      tensorComplexity    :: Complexity,
@@ -62,9 +64,9 @@ data T = T {
 -- that field be renamed "kernel symbol"?) and the slots.
 --
 instance Eq T where
-    (==) x y = (manifold x == manifold y)     &&
+    (==) x y = (manifold x   == manifold y)   &&
                (tensorName x == tensorName y) &&
-               (slots x == slots y)
+               (slots x      == slots y)
 
 instance Ord T where
     compare x y = if isCommuting x || isCommuting y 
@@ -119,17 +121,43 @@ equalUpToVariance (Symbol (Tensor t)) (Symbol (Tensor t')) =
 equalUpToVariance _ _ = False  
   
   
--- A short list of tensor types.  The most important thing is to
--- distinguish the special tensors Metric, LeviCivita and KroneckerDelta
+-- A special comparison function to tell if two tensors match,
+-- except for the variances of the indices:
+--
+matchUpToVariance :: Expr -> Expr -> Bool
+matchUpToVariance (Symbol (Tensor t)) (Symbol (Tensor t')) = 
+  manifold t   == manifold t' &&
+  tensorName t == tensorName t' &&
+  (and $ zipWith sameButVariance' (slots t) (slots t'))
+  where
+    sameButVariance' :: VarIndex -> VarIndex -> Bool
+    sameButVariance' (Covariant i)     (Covariant i')     = i == i'
+    sameButVariance' (Covariant i)     (Contravariant i') = i == i'
+    sameButVariance' (Contravariant i) (Covariant i')     = i == i'
+    sameButVariance' (Contravariant i) (Contravariant i') = i == i'
+matchUpToVariance _ _ = False  
+  
+  
+-- A short list of tensor "classes", for lack of a better term.
+-- The purpose of the classification is to distinguish the special
+-- tensors Metric, LeviCivita and KroneckerDelta
 -- from a general tensor.
 --
 -- The signature of the metric, for manifolds possessing a metric,
 -- is kept in the manifold record, not the tensor record.
 --
-data TensorType = General
-                | Metric
-                | KroneckerDelta
-                | LeviCivita
+data TensorClass = General
+                 | Metric
+                 | KroneckerDelta
+                 | LeviCivita
+                 deriving (Eq, Show)
+
+
+-- The TensorType indicates whether a tensor object is a regular
+-- tensor or a pattern tensor.
+--
+data TensorType = RegularTensor
+                | PatternTensor
                 deriving (Eq, Show)
 
 
@@ -182,14 +210,6 @@ instance Ord Idx where
     compare (Component m) (Component n) = compare m n
 
 
--- IndexType keeps track of indices that are recognized
--- explicitly to be dummies.
---
-data IndexType = Regular
-               | ExplicitDummy
-               | Pattern
-    deriving (Eq, Show)
-
 -- The IndexName is the textual representation of the index.
 -- The indexName field is the unique identifier of the index
 -- (since it is used to define the Eq instance of the type).
@@ -198,21 +218,19 @@ data Index = Index {
    indexManifold :: Manifold,
    indexName     :: String,
    indexTeXName  :: String,
-   indexType     :: IndexType
+   indexType     :: SymbolType,
+   indexIsDummy  :: Bool
 } deriving Show
 
 
--- A empty indexName in a pattern index serves as a wildcard.
+-- A Pattern Index never matches in the sense of "Eq".  This
+-- prevents Patterns from being spuriously replaced by dummy
+-- indices.
 --
 instance Eq Index where
-    (==) m n = if ((indexType m == Pattern && indexType n /= Pattern) &&  
-                   (indexName m == "" || indexName m == indexName n)) ||
-                  ((indexType m /= Pattern && indexType n == Pattern) &&
-                   (indexName n == "" || indexName m == indexName n))
-                  then True
-                  else ((indexManifold m) == (indexManifold n)) &&
-                       ((indexName m)     == (indexName n))     &&
-                       ((indexType m)     == (indexType n))
+    (==) m n = ((indexManifold m) == (indexManifold n)) &&
+               ((indexName m)     == (indexName n))     &&
+               ((indexType m)     == (indexType n))
 
 instance Ord Index where
     compare m n = compare (indexName m) (indexName n)
@@ -274,22 +292,18 @@ data Metricity = NoMetric
 -- Metricity abbreviations for common spaces:
 --
 minkowski :: Metricity
-minkowski   = Symmetric (1,3)
+minkowski  = Symmetric (1,3)
 
 euclidean :: Int -> Metricity
 euclidean n = Symmetric (n, 0)
 
 
-data ManifoldType = RegularManifold
-                  | PatternManifold
-                    deriving (Eq, Show)
-                    
                     
 -- The Manifold record gives the name, dimension and indices
 -- associated with the tangent bundle of the manifold.
 --
 data Manifold = Manifold {
-    manifoldType           :: ManifoldType,
+    manifoldType           :: SymbolType,
     manifoldName           :: String,
     manifoldTeXName        :: String,
     manifoldDimension      :: Int,
@@ -302,15 +316,10 @@ instance Named Manifold where
     teXName = manifoldTeXName
     
 instance Eq Manifold where
-    (==) m n = if (manifoldType m == PatternManifold  &&
-                   manifoldType n /= PatternManifold) ||
-                  (manifoldType m /= PatternManifold  &&
-                   manifoldType n == PatternManifold)
-                  then True
-                  else manifoldType m      == manifoldType n      &&     
-                       manifoldName m      == manifoldName n      &&
-                       manifoldDimension m == manifoldDimension n &&
-                       metricity m         == metricity n
+    (==) m n = manifoldType m      == manifoldType n      &&     
+               manifoldName m      == manifoldName n      &&
+               manifoldDimension m == manifoldDimension n &&
+               metricity m         == metricity n
 
 
 -- mkManifold make a new manifold and possibly a metric
@@ -322,7 +331,7 @@ mkManifold :: String         -- name of the manifold
            -> (Manifold, Maybe NamedTensorExpr_2)
 mkManifold nam dim metr =
     let
-        manif = Manifold { manifoldType           = RegularManifold,
+        manif = Manifold { manifoldType           = Regular,
                            manifoldName           = nam,
                            manifoldTeXName        = nam,
                            manifoldDimension      = dim,
@@ -351,7 +360,7 @@ checkIndicesInManifold m indices =
 
         manifolds = map getIndexManifold indices
     in
-        all ((==) m) manifolds
+        all (\m' -> (==) m m' || manifoldType m' == Pattern) manifolds
 
 
 mkNamedMetric :: Manifold
@@ -372,7 +381,8 @@ mkNamedMetric m nam teXNam i1 i2 =
                                                , tensorName          = nam
                                                , tensorTeXName       = teXNam
                                                , manifold            = m
-                                               , tensorType          = Metric
+                                               , tensorClass         = Metric
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = symmetricTwoIndex
                                                , tensorComplexity    = Real
@@ -397,7 +407,8 @@ mkVector m nam i =
                                                , tensorName          = nam
                                                , tensorTeXName       = nam
                                                , manifold            = m
-                                               , tensorType          = General
+                                               , tensorClass         = General
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = oneIndex
                                                , tensorComplexity    = Real
@@ -423,7 +434,8 @@ mkVector_ m nam teXNam i =
                                                , tensorName          = nam
                                                , tensorTeXName       = teXNam
                                                , manifold            = m
-                                               , tensorType          = General
+                                               , tensorClass         = General
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = oneIndex
                                                , tensorComplexity    = Real
@@ -449,7 +461,8 @@ mkKroneckerDelta m nam i1@(Covariant _) i2@(Contravariant _) =
                                                , tensorName          = nam
                                                , tensorTeXName       = nam
                                                , manifold            = m
-                                               , tensorType          = KroneckerDelta
+                                               , tensorClass         = KroneckerDelta
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = symmetricTwoIndex
                                                , tensorComplexity    = Real
@@ -468,7 +481,8 @@ mkKroneckerDelta m nam i1@(Contravariant _) i2@(Covariant _) =
                                                , tensorName          = nam
                                                , tensorTeXName       = nam
                                                , manifold            = m
-                                               , tensorType          = KroneckerDelta
+                                               , tensorClass         = KroneckerDelta
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = symmetricTwoIndex
                                                , tensorComplexity    = Real
@@ -496,7 +510,8 @@ mkKroneckerDelta_ m nam teXNam i1@(Covariant _) i2@(Contravariant _) =
                                                , tensorName          = nam
                                                , tensorTeXName       = teXNam
                                                , manifold            = m
-                                               , tensorType          = KroneckerDelta
+                                               , tensorClass         = KroneckerDelta
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = symmetricTwoIndex
                                                , tensorComplexity    = Real
@@ -515,7 +530,8 @@ mkKroneckerDelta_ m nam teXNam i1@(Contravariant _) i2@(Covariant _) =
                                                , tensorName          = nam
                                                , tensorTeXName       = teXNam
                                                , manifold            = m
-                                               , tensorType          = KroneckerDelta
+                                               , tensorClass         = KroneckerDelta
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = symmetricTwoIndex
                                                , tensorComplexity    = Real
@@ -544,7 +560,8 @@ mkLeviCivita m nam i1@(Contravariant _) i2@(Contravariant _) i3@(Contravariant _
                                                , tensorName          = nam
                                                , tensorTeXName       = nam
                                                , manifold            = m
-                                               , tensorType          = LeviCivita
+                                               , tensorClass         = LeviCivita
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = antisymmetricFourIndex
                                                , tensorComplexity    = Real
@@ -575,7 +592,8 @@ mkLeviCivita_ m nam teXNam i1@(Contravariant _) i2@(Contravariant _) i3@(Contrav
                                                , tensorName          = nam
                                                , tensorTeXName       = teXNam
                                                , manifold            = m
-                                               , tensorType          = LeviCivita
+                                               , tensorClass         = LeviCivita
+                                               , tensorType          = Regular
                                                , slots               = indices
                                                , symmetry            = antisymmetricFourIndex
                                                , tensorComplexity    = Real

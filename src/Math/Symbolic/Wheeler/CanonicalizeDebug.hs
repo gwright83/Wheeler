@@ -208,20 +208,20 @@ mergeNoncommutingFactors []  q = q
 mergeNoncommutingFactors p  [] = p
 mergeNoncommutingFactors p   q =
     let
-        ps = init p
-        p' = last p
-        q' = head q
-        qs = tail q
+        ps = traceCall "    ps of " init p
+        p' = traceCall "    p' of " last p
+        q' = traceCall "    q' of " head q
+        qs = traceCall "    qs of " tail q
 
-        h = simplifyFactors [p', q']
+        h = traceCall "simplifyFactors (*)" simplifyFactors [p', q']
     in
         if null h
-            then mergeNoncommutingFactors ps qs
+            then traceCall2 "mncf 1"  mergeNoncommutingFactors ps qs
             else if null (tail h)
-                    then mergeNoncommutingFactors ps ((head h) : qs)
-                    else if head h == p'
-                            then mergeNoncommutingFactors ps (p' : q)
-                            else mergeNoncommutingFactors ps (q' : p' : qs)
+                    then traceCall2 "mncf 2" mergeNoncommutingFactors ps ((head h) : qs)
+                    else if (traceCall2 " (==) " (==) (head h) p')
+                            then traceCall2 "mncf 3" mergeNoncommutingFactors ps (p' : q)
+                            else traceCall2 "mncf 4" mergeNoncommutingFactors ps (q' : p' : qs)
 
 
 -- XXX FIXME XXX

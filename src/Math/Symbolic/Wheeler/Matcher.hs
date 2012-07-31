@@ -11,16 +11,29 @@
 module Math.Symbolic.Wheeler.Matcher where
 
 
+import Control.Monad.State
 import Data.List
---import qualified Data.Map as Map
+import qualified Data.Map as Map
 import Data.Maybe
 
 
 import Math.Symbolic.Wheeler.Canonicalize
 import Math.Symbolic.Wheeler.Common
+import Math.Symbolic.Wheeler.DiracSpinor
 import Math.Symbolic.Wheeler.Expr
---import Math.Symbolic.Wheeler.Symbol
---import Math.Symbolic.Wheeler.Tensor
+import Math.Symbolic.Wheeler.Symbol
+import Math.Symbolic.Wheeler.SimpleSymbol
+import Math.Symbolic.Wheeler.Tensor
+
+
+-- Pattern variables: move to a separate module
+-- eventually.
+
+data PatternVar = SimplePattern S
+                | TensorPattern T
+                | SpinorPattern D
+                | VarIndexPattern VarIndex
+                deriving (Eq, Ord, Show)
 
 
 -- The data structure for patterns is a Rose Tree.  In a
@@ -28,56 +41,177 @@ import Math.Symbolic.Wheeler.Expr
 --
 data Rose a = Rose a [ Rose a ] deriving Show
 
-type Pred = Expr -> Bool
+type Environ = Map.Map PatternVar Expr
+--type Environ = Map.Map PatternVar (PatternVar, Breadcrumbs)
+
+type Pred    = Expr -> State Environ Bool
 type Pattern = Rose Pred
 
 
 -- Some basic predicates:
 
 isSum :: Pred
-isSum (Sum _) = True
-isSum _       = False
+isSum (Sum _) = return True
+isSum _       = return False
 
 isProduct :: Pred
-isProduct (Product _) = True
-isProduct _           = False
+isProduct (Product _) = return True
+isProduct _           = return False
 
 isLeafExpr :: Expr -> Pred
-isLeafExpr ex = (==) ex
+isLeafExpr ex@(Symbol (Simple _)) = \e -> do
+  env <- get
+  let
+    mat = ex == e
+  
+  if mat && hasPattern ex
+    then do
+        let (mat', env') = checkEnvironAndUpdate env ex e
+        put env'
+        return mat'
+    else return mat
+isLeafExpr ex@(Symbol (Tensor _)) = \e -> do
+  env <- get
+  let
+    mat = ex == e
+  
+  if mat && hasPattern indexPatterns _ = []
+
+    then do
+        let (mat', env') = checkEnvironAndUpdate env ex e
+        put env'
+        return mat'
+    else return mat
+isLeafExpr ex = \e -> do return ((==) ex e)
+
+
+hasPattern :: Expr -> Bool
+hasPattern (Symbol (Simple s)) = simpleType s == PatternSimple
+hasPattern _ = False
+
+
+getPatterns :: Expr -> [ PatternVar ]
+getPatterns (Symbol (Simple s)) = if simpleType s == PatternSimple
+                                 then [SimplePattern s]
+                                 else []
+getPatterns (Symbol (Tensor t)) = if tensorType t == PatternTensor
+                                 then [TensorPattern t] ++ indexPatterns t
+                                 else indexPatterns t
+getPatterns _ = []
+
+
+indexPatterns :: T -> [ PatternVar ]
+indexPatterns t = let
+  indices  = slots t
+  indices' = filter (\i -> (==) PatternIndex (varIndexType i)) indices
+  
+  varIndexType (Covariant (Abstract i))      = indexType i
+  varIndexType (Contravariant (Abstract i))  = indexType i
+  varIndexType (Covariant (Component _))     = RegularIndex
+  varIndexType (Contravariant (Component _)) = RegularIndex
+  in
+   map VarIndexPattern indices'
+
+
+-- Need to modify this so it processes a whole list
+-- of patterns.  So, should EVERY pattern match or
+-- ANY pattern match?
+--
+checkEnvironAndUpdate :: Environ -> Expr -> Expr -> (Bool, Environ)
+checkEnvironAndUpdate env pat_ex ex =
+  let
+    (p : _) = getPatterns pat_ex
+    ex' = Map.lookup p env
+  in
+   if isJust ex'
+   then ((fromJust ex') == ex, env)
+   else (True, Map.insert p ex env)
+
+
+-- Try a different approach: make a list of subtrees, then test each
+-- one to see if it matches.
+--
+-- A nice aspect of this approach is that it's easy to add position
+-- information to the list.
+--
+match :: Pattern -> Expr -> [ (Breadcrumbs, Expr, Environ) ]
+match p e = map snd . filter fst $ map (oneMatch p) (subExprs e)
 
 
 -- compile turns an Expr into a Pattern 
 --
 compile :: Expr -> Pattern
-compile = compile' . canonicalize
+compile = compile_ . canonicalize
 
-compile' :: Expr -> Pattern
-compile' (Sum ts)       = Rose isSum (map compile ts)
-compile' (Product fs)   = Rose isProduct (map compile fs)
-compile' ex             = Rose (isLeafExpr ex) []
+compile_ :: Expr -> Pattern
+compile_ (Sum ts)       = Rose isSum (map compile ts)
+compile_ (Product fs)   = Rose isProduct (map compile fs)
+compile_ ex             = Rose (isLeafExpr ex) []
 
 
--- The match function checks if the pattern expression is contained
--- anywhere in the subject expression.
+-- Given an expression, generate a list of subtrees and the breadcrumb
+-- trail to the root of each subtree.
 --
-match :: Pattern -> Expr -> Bool
-match pat s@(Sum ts)     = oneMatch pat s || any (match pat) ts
-match pat p@(Product fs) = oneMatch pat p || any (match pat) fs
-match pat ex             = oneMatch pat ex
+subExprs :: Expr -> [ (Breadcrumbs, Expr) ]
+subExprs ex = subEx [] ex
+  where
+    subEx :: Breadcrumbs -> Expr -> [ (Breadcrumbs, Expr) ]
+    subEx bc s@(Sum ts)     = (bc, s) : concatMap (\(n, x) -> subEx (Scxt n : bc) x) (zip [1..] ts)    
+    subEx bc p@(Product fs) = (bc, p) : concatMap (\(n, x) -> subEx (Pcxt n : bc) x) (zip [1..] fs)
+    subEx bc e              = (bc, e) : []
+    
 
-
--- the oneMatch function checks if the pattern expression
--- is contained in the a subtree beginning at the root of
--- the subject expression.
+-- Given a pattern and a single expression, test if it
+-- matches.  The expression is assumed to be a subtree of
+-- a given expression, so it comes with a breadcrumb trail.
 --
-oneMatch :: Pattern -> Expr -> Bool
-oneMatch (Rose p ps) s@(Sum ts)     = p s && unorderedMatch ps ts
-oneMatch (Rose p ps) f@(Product fs) = p f && productMatch   ps fs
-oneMatch (Rose p _)  ex             = p ex
+-- An environment containing the matches for pattern variables
+-- is also returned.
+--
+oneMatch :: Pattern -> (Breadcrumbs, Expr) -> (Bool, (Breadcrumbs, Expr, Environ))
+oneMatch p (bc, e) = let
+  (mat, env) = runState (oneMatch_ p e) Map.empty
+  in
+   (mat, (bc, e, env))
+   
+
+-- Match a single pattern against an expression.  The State
+-- monad contains the Environ of pattern variables and the
+-- corresponding matched variables.
+--
+oneMatch_ :: Pattern -> Expr -> State Environ Bool
+oneMatch_ (Rose p ps) s@(Sum ts)     = do
+  v  <- p s
+  v' <- unorderedMatch ps ts
+  return (v && v')
+oneMatch_ (Rose p ps) f@(Product fs) = do
+  v  <- p f
+  v' <- productMatch   ps fs
+  return (v && v')
+oneMatch_ (Rose p _)  ex             = p ex
 
 
-productMatch :: [ Pattern ] -> [ Expr ] -> Bool
-productMatch ps xs =
+-- Match the patterns (in any order) against the members of
+-- the expression list.
+--
+unorderedMatch :: [ Pattern ] -> [ Expr ] -> State Environ Bool
+unorderedMatch [] _       = do return True
+unorderedMatch _ []       = do return False
+unorderedMatch (p : ps) y = do
+  let
+    p' = \e -> evalState (oneMatch_ p e) Map.empty
+  v <- unorderedMatch ps (deleteAt p' y)  
+  return $
+    any p' y && v 
+
+
+-- Match the patterns against the members of the expression list
+-- in a way appropriate to a product: in any order for commuting
+-- factors, in order for noncommuting factors in the same
+-- representation space.
+--
+productMatch :: [ Pattern ] -> [ Expr ] -> State Environ Bool
+productMatch ps xs = do
   let
     factorsByRepSpace   = groupFactors xs
     commutingFactors    = lookup [] factorsByRepSpace
@@ -86,69 +220,39 @@ productMatch ps xs =
     leftoverPatterns    = if isJust commutingFactors
                           then notMatching ps (fromJust commutingFactors)
                           else ps
-  in
-    infixMatch leftoverPatterns noncommutingFactors
-
   
--- notMatching matches each pattern on the list, returning
--- the patterns that did not match.
+  infixMatch leftoverPatterns noncommutingFactors
+
+
+-- Return a list of patterns that are not satisfied by any
+-- element of the expression list.
 --
 notMatching :: [ Pattern ] -> [ Expr ] -> [ Pattern ]
 notMatching [] _  = []
-notMatching (p : ps) xs = if any (oneMatch p) xs
+notMatching (p : ps) xs = if any (\e -> evalState (oneMatch_ p e) Map.empty) xs
                           then notMatching ps xs
                           else p : notMatching ps xs
 
 
--- unorderedMatch asks if each element of the list of the predicate p
--- partially applied to the pattern list, returns True.  As each
--- predicate is applied, the matching element is deleted, so if the
--- pattern contains two instances of an expression, two corresponding
--- instances must be present in the subject list.
+-- Test if the patterns are satisfied (in order) by the leading
+-- elements of the expression list.
 --
-unorderedMatch :: [ Pattern ] -> [ Expr ] -> Bool
-unorderedMatch [] _       = True
-unorderedMatch _ []       = False
-unorderedMatch (p : ps) y =
-  let
-    p' = oneMatch p
-  in
-    any p' y && unorderedMatch ps (deleteAt p' y) 
+prefixMatch :: [ Pattern ] -> [ Expr ] -> State Environ Bool  
+prefixMatch [] _ = do return True
+prefixMatch _ [] = do return False
+prefixMatch (p : ps) (x : xs) = do
+  v <- prefixMatch ps xs
+  let p' = \e -> evalState (oneMatch_ p e) Map.empty
+  return (p' x && v)
 
 
--- orderedMatch is similar to unorderedMatch, but the list
--- of partially applied predicates must match in order.  This
--- means that (p x_1) must match earlier in the subject list
--- than (p x_2).
+-- Test if the patterns are satisfied by contiguous members
+-- of the expression list.
 --
-orderedMatch :: [ Pattern ] -> [ Expr ] -> Bool
-orderedMatch [] _ = True
-orderedMatch _ [] = False
-orderedMatch (p : ps) y =
-  let
-    p' = oneMatch p
-  in
-    any p' y && orderedMatch ps (deleteUpTo p' y)
-
-
--- prefixMatch tests if the patterns match the leading elements
--- of the list of subject expression.
---
-prefixMatch :: [ Pattern ] -> [ Expr ] -> Bool  
-prefixMatch [] _ = True
-prefixMatch _ [] = False
-prefixMatch (p : ps) (x : xs) =
-  let
-    p' = oneMatch p 
-  in
-    p' x && prefixMatch ps xs
-
-
--- infixMatch tests if the patterns match contiguous
--- elements of the list of subject expressions.
---
-infixMatch :: [ Pattern ] -> [ Expr ] -> Bool
-infixMatch needle haystack = any (prefixMatch needle) (tails haystack)
+infixMatch :: [ Pattern ] -> [ Expr ] -> State Environ Bool
+infixMatch needle haystack = do
+  let p' = \es -> evalState (prefixMatch needle es) Map.empty
+  return (any p' (tails haystack))
 
 
 -- deleteAt is the useful but mysteriously unavailable
@@ -168,118 +272,3 @@ deleteUpTo :: (a -> Bool) -> [ a ] -> [ a ]
 deleteUpTo _ []       = []
 deleteUpTo p (x : xs) = if p x then xs else deleteUpTo p xs
 
-
-matchAll :: Pattern -> Expr -> [ Breadcrumbs ]
-matchAll pat ex = matchAll' [] [] pat ex
-    where
-      matchAll' :: Breadcrumbs
-                -> [ Breadcrumbs ]
-                -> Pattern
-                -> Expr
-                -> [ Breadcrumbs ]
-      matchAll' bc bcs pt s@(Sum ts)     = if oneMatch pt s
-                                               then (bc : bcs)
-                                               else foldr (\(n, x) b -> matchAll' (Scxt n : bc) b pt x) bcs (zip [1..] ts)
-      matchAll' bc bcs pt p@(Product fs) = if oneMatch pt p
-                                               then (bc : bcs)
-                                               else foldr (\(n, x) b -> matchAll' (Pcxt n : bc) b pat x) bcs (zip [1..] fs)
-      matchAll' bc bcs pt e              = if oneMatch pt e then bc : bcs else bcs
-
-
--- type Environ = Map.Map String (VarIndex, Breadcrumbs)
-
--- matchAll_ :: Pattern -> Expr -> [ (Breadcrumbs, Environ) ]
--- matchAll_ pat ex = matchAll_' ([], Map.empty) [] pat ex
---     where
---       matchAll_' :: (Breadcrumbs, Environ)      -- breadcrumb trail for the current position
---                  -> [ (Breadcrumbs, Environ) ]  -- Accumulated breadcrumb trails
---                  -> Pattern                     -- Patern for which we are searching
---                  -> Expr                        -- Subject expression
---                  -> [ (Breadcrumbs, Environ) ]  -- Returned list of breadcrumb trails.
---       matchAll_' (bc, env) bcs pt s@(Sum ts) =
---         let
---           (mat, env') = oneMatch_' env pt s
---         in
---          if mat
---          then (bc, env') : bcs
---          else foldr (\(n, x) b -> matchAll_' (Scxt n : bc, env) b pt x) bcs (zip [1..] ts)
-              
---       matchAll_' (bc, env) bcs pt p@(Product fs) =
---         let
---           (mat, env') = oneMatch_' env pt p
---         in
---          if mat
---          then (bc, env') : bcs
---          else foldr (\(n, x) b -> matchAll_' (Pcxt n : bc, env) b pat x) bcs (zip [1..] fs)
-              
---       matchAll_' (bc, env) bcs pt e =
---         let
---           (mat, env') = oneMatch_' env pt e
---         in
---          if mat
---          then (bc, env') : bcs
---          else bcs
-
-
--- oneMatch_' :: Environ -> Pattern -> Expr -> (Bool, Environ)
--- oneMatch_' env (Rose p ps) s@(Sum ts) =
---   let
---     (mat, env') = unorderedMatch_ env ps ts 
---   in (p s && mat, env')
--- oneMatch_' env (Rose p ps) f@(Product fs) = 
---   let
---     (mat, env') = productMatch_ env ps fs
---   in (p f && mat, env')
--- oneMatch_' env (Rose p _)  t@(Symbol (Tensor _)) = (p t,  env)
--- oneMatch_' env (Rose p _)  ex                    = (p ex, env)
-
-
--- unorderedMatch_ :: Environ -> [ Pattern ] -> [ Expr ] -> (Bool, Environ)
--- unorderedMatch_ _ [] _       = True
--- unorderedMatch_ _ _  []      = False
--- unorderedMatch_ env (p : ps) y =
---   let
---     p' = oneMatch_' env p
---   in
---     any p' y && unorderedMatch_ env ps (deleteAt (fst . p') y) 
-
-
--- productMatch_ :: Environ -> [ Pattern ] -> [ Expr ] -> Bool
--- productMatch_ env ps xs =
---   let
---     factorsByRepSpace   = groupFactors xs
---     commutingFactors    = lookup [] factorsByRepSpace
---     noncommutingFactors = concat $ map snd $ filter (not . null . fst) factorsByRepSpace
-    
---     leftoverPatterns    = if isJust commutingFactors
---                           then notMatching ps (fromJust commutingFactors)
---                           else ps
---   in
---     infixMatch leftoverPatterns noncommutingFactors
-
-
-
--- Try a different approach: make a list of subtrees, then test each
--- one to see if it matches.
---
--- A nice aspect of this approach is that it's easy to add position
--- information to the list.
---
-
-subExprs :: Expr -> [ Expr ]
-subExprs s@(Sum ts)     = s : concatMap subExprs ts
-subExprs p@(Product fs) = p : concatMap subExprs fs
-subExprs e              = e : []
-
-
-subExprs' :: Expr -> [ (Breadcrumbs, Expr) ]
-subExprs' ex = subEx [] ex
-  where
-    subEx :: Breadcrumbs -> Expr -> [ (Breadcrumbs, Expr) ]
-    subEx bc s@(Sum ts)     = (bc, s) : concatMap (\(n, x) -> subEx (Scxt n : bc) x) (zip [1..] ts)    
-    subEx bc p@(Product fs) = (bc, p) : concatMap (\(n, x) -> subEx (Pcxt n : bc) x) (zip [1..] fs)
-    subEx bc e              = (bc, e) : []
-    
-
-neoMatch :: Pattern -> Expr -> [ (Breadcrumbs, Expr) ]
-neoMatch p e = filter ((oneMatch p) . snd) (subExprs' e)

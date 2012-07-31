@@ -8,6 +8,7 @@
 
 module Math.Symbolic.Wheeler.SimpleSymbol where
 
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
 import Math.Symbolic.Wheeler.Named
@@ -19,12 +20,18 @@ data S = S {
      simpleIdentifier    :: Id,
      simpleName          :: String,
      simpleTeXName       :: String,
+     simpleType          :: SymbolType,
      simpleComplexity    :: Complexity,
      simpleCommutativity :: Commutativity
 }
 
 instance Eq S where
-    (==) x y = simpleIdentifier x == simpleIdentifier y
+    (==) x y = if (simpleType x == Pattern && simpleType y /= Pattern) ||
+                  (simpleType x /= Pattern && simpleType y == Pattern)
+                  then True
+                  else ((simpleIdentifier x) == (simpleIdentifier y)) &&
+                       ((simpleType x)       == (simpleType y))
+
 
 instance Ord S where
     compare x y = if isNonCommuting x && isNonCommuting y

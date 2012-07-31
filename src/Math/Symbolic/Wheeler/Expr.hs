@@ -29,6 +29,7 @@ import Data.Ratio
 import System.IO.Unsafe
 
 
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Canonicalize
 --import Math.Symbolic.Wheeler.CanonicalizeDebug
 import Math.Symbolic.Wheeler.Complexity
@@ -523,6 +524,7 @@ instance Floating Expr where
                         return $ Simple S { simpleIdentifier    = ident
                                           , simpleName          = "pi"
                                           , simpleTeXName       = "\\pi"
+                                          , simpleType          = Regular
                                           , simpleComplexity    = Real
                                           , simpleCommutativity = Commuting
                                           }

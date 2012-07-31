@@ -13,6 +13,7 @@ module Math.Symbolic.Wheeler.Symbol where
 import Data.Maybe
 import System.IO.Unsafe
 
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Commutativity
 import Math.Symbolic.Wheeler.Complexity
 import {-# SOURCE #-} Math.Symbolic.Wheeler.DiracSpinor
@@ -127,6 +128,7 @@ simpleSymbol s = unsafePerformIO $ do
                      return $ Simple S { simpleIdentifier    = ident
                                        , simpleName          = s
                                        , simpleTeXName       = s
+                                       , simpleType          = Regular
                                        , simpleComplexity    = Real
                                        , simpleCommutativity = Commuting
                                        }
@@ -137,8 +139,20 @@ ncSymbol s rep = unsafePerformIO $ do
                      return $ Simple S { simpleIdentifier    = ident
                                        , simpleName          = s
                                        , simpleTeXName       = s
+                                       , simpleType          = Regular
                                        , simpleComplexity    = Real
                                        , simpleCommutativity = NonCommuting (RepSpace rep)
+                                       }
+                       
+mkPatternSymbol :: String -> Symbol
+mkPatternSymbol s = unsafePerformIO $ do 
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = s
+                                       , simpleTeXName       = s
+                                       , simpleType          = Pattern
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = Commuting
                                        }
 
 

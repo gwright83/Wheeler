@@ -27,7 +27,7 @@ Library
     Math.Symbolic.Wheeler.Expr
     Math.Symbolic.Wheeler.FactorOut
     Math.Symbolic.Wheeler.IO
-    Math.Symbolic.Wheeler.Matcher
+    Math.Symbolic.Wheeler.Matcher2
     Math.Symbolic.Wheeler.Numeric
     Math.Symbolic.Wheeler.Symbol
     Math.Symbolic.Wheeler.Tensor
