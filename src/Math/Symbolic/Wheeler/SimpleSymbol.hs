@@ -26,12 +26,8 @@ data S = S {
 }
 
 instance Eq S where
-    (==) x y = if (simpleType x == Pattern && simpleType y /= Pattern) ||
-                  (simpleType x /= Pattern && simpleType y == Pattern)
-                  then True
-                  else ((simpleIdentifier x) == (simpleIdentifier y)) &&
-                       ((simpleType x)       == (simpleType y))
-
+    (==) x y = ((simpleName x) == (simpleName y)) &&
+               ((simpleType x) == (simpleType y))
 
 instance Ord S where
     compare x y = if isNonCommuting x && isNonCommuting y

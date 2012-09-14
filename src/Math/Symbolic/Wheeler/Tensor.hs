@@ -122,19 +122,36 @@ equalUpToVariance _ _ = False
   
   
 -- A special comparison function to tell if two tensors match,
--- except for the variances of the indices:
+-- except for the variances of the indices.  This really
+-- should return an environment of which pattern indices correspond
+-- to which actual indices, but that will have to come later.
+--
+-- Also, I need to allow component pattern indices.
 --
 matchUpToVariance :: Expr -> Expr -> Bool
 matchUpToVariance (Symbol (Tensor t)) (Symbol (Tensor t')) = 
-  manifold t   == manifold t' &&
+  manifold t   == manifold t'   &&
   tensorName t == tensorName t' &&
   (and $ zipWith sameButVariance' (slots t) (slots t'))
   where
     sameButVariance' :: VarIndex -> VarIndex -> Bool
-    sameButVariance' (Covariant i)     (Covariant i')     = i == i'
-    sameButVariance' (Covariant i)     (Contravariant i') = i == i'
-    sameButVariance' (Contravariant i) (Covariant i')     = i == i'
-    sameButVariance' (Contravariant i) (Contravariant i') = i == i'
+    sameButVariance' (Covariant     (Abstract  i)) (Covariant     (Abstract  i')) = match i i'
+    sameButVariance' (Covariant     (Abstract  i)) (Contravariant (Abstract  i')) = match i i'
+    sameButVariance' (Contravariant (Abstract  i)) (Covariant     (Abstract  i')) = match i i'
+    sameButVariance' (Contravariant (Abstract  i)) (Contravariant (Abstract  i')) = match i i'
+    sameButVariance' (Covariant     (Component i)) (Covariant     (Component i')) = (==)  i i'
+    sameButVariance' (Covariant     (Component i)) (Contravariant (Component i')) = (==)  i i'
+    sameButVariance' (Contravariant (Component i)) (Covariant     (Component i')) = (==)  i i'
+    sameButVariance' (Contravariant (Component i)) (Contravariant (Component i')) = (==)  i i'
+    sameButVariance' _ _ = False
+    
+    match :: Index -> Index -> Bool
+    match m n = if ((indexType m == Pattern && indexType n /= Pattern) ||
+                    (indexType m /= Pattern && indexType n == Pattern))
+                   then True
+                   else if (indexType m == Pattern && indexType n == Pattern)
+                            then False
+                            else m == n
 matchUpToVariance _ _ = False  
   
   

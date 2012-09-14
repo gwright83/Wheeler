@@ -89,10 +89,10 @@ isDummy (Covariant     (Abstract i)) = indexIsDummy i
 isDummy (Contravariant (Abstract i)) = indexIsDummy i
 isDummy _ = False
 
-isPattern :: VarIndex -> Bool
-isPattern (Covariant     (Abstract i)) = indexType i == Pattern
-isPattern (Contravariant (Abstract i)) = indexType i == Pattern
-isPattern _ = False
+isPatternVarIndex :: VarIndex -> Bool
+isPatternVarIndex (Covariant     (Abstract i)) = indexType i == Pattern
+isPatternVarIndex (Contravariant (Abstract i)) = indexType i == Pattern
+isPatternVarIndex _ = False
 
 
 -- is a tensor a metric, Kronecker delta or Levi-Civita symbol?

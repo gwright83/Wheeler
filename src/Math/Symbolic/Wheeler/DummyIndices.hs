@@ -92,10 +92,10 @@ collectIndices_ e = map (sortBy (comparing (length . snd)))    $
 
 
 collectIndices__ :: Expr -> [ IndexList ]
-collectIndices__ e = map (sortBy (comparing (length . snd)))     $
-                     groupBy (equalling (toContravariant . fst)) $
-                     sortBy  (comparing (toContravariant . fst)) $
-                     filter (not . (\x -> isPattern x || isDummy x) . fst)              $ fi [] [] e
+collectIndices__ e = map (sortBy (comparing (length . snd)))                       $
+                     groupBy (equalling (toContravariant . fst))                   $
+                     sortBy  (comparing (toContravariant . fst))                   $
+                     filter (not . (\x -> isPatternVarIndex x || isDummy x) . fst) $ fi [] [] e
     where
         fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
         fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps

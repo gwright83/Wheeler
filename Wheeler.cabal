@@ -28,7 +28,9 @@ Library
     Math.Symbolic.Wheeler.FactorOut
     Math.Symbolic.Wheeler.IO
     Math.Symbolic.Wheeler.Matcher2
+    Math.Symbolic.Wheeler.Matchable
     Math.Symbolic.Wheeler.Numeric
+    Math.Symbolic.Wheeler.Pattern
     Math.Symbolic.Wheeler.Symbol
     Math.Symbolic.Wheeler.Tensor
     Math.Symbolic.Wheeler.TensorBasics
@@ -54,6 +56,7 @@ Library
   Build-Depends:
     base >= 3 && < 5,
     containers >= 0.4.1.0,
+    dlist >= 0.5,
     mtl >= 2.0.1.0,
     parsec >= 3.1.1,
     uniqueid >= 0.1.1

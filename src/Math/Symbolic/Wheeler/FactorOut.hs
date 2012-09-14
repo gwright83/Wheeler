@@ -27,7 +27,7 @@ mapExpr f e = f e
 
 
 containsTensor :: Expr -> Expr -> Bool
-containsTensor t e = isJust $ findExpr (equalUpToVariance t) e
+containsTensor t e = isJust $ findExpr (matchUpToVariance t) e
 
 
 factorOutTensor :: Expr -> Expr -> Expr
@@ -46,7 +46,7 @@ factorOutTensor _ e = e
 replaceWithKroneckers :: Expr -> Expr -> Expr -> Expr
 replaceWithKroneckers t@(Symbol (Tensor tt)) t' e =
   let
-    (t'', bc)   = fromJust $ findExpr' (equalUpToVariance t) e
+    (t'', bc)   = fromJust $ findExpr' (matchUpToVariance t) e
     m           = manifold tt
     d           = \ x y -> if sameVariance x y
                            then mkKroneckerDelta_ m "delta" "\\delta" (-x) y
