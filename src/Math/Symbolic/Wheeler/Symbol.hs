@@ -155,6 +155,17 @@ mkPatternSymbol s = unsafePerformIO $ do
                                        , simpleCommutativity = Commuting
                                        }
 
+mkNcPatternSymbol :: String -> String -> Symbol
+mkNcPatternSymbol s rep = unsafePerformIO $ do 
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = s
+                                       , simpleTeXName       = s
+                                       , simpleType          = Pattern
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = NonCommuting (RepSpace rep)
+                                       }
+
 
 -- Show the internal details of a Symbol:
 

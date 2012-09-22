@@ -19,7 +19,8 @@ module Math.Symbolic.Wheeler.Expr (
        repSpaces,
        hasNonCommuting,
        showInternal,
-       negate, (+), (-), (*), (/)
+       negate, (+), (-), (*), (/),
+       mapExpr
 ) where
 
 
@@ -559,4 +560,11 @@ instance Enum Expr where
 
 instance Read Expr where
     readsPrec _ s = [ (readExpr s, "") ]
+
+
+
+mapExpr :: (Expr -> Expr) -> Expr -> Expr
+mapExpr f (Sum ts)     = f (Sum (map f ts))
+mapExpr f (Product fs) = f (Product (map f fs))
+mapExpr f e = f e
 

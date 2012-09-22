@@ -434,6 +434,32 @@ mkVector m nam i =
             else error ("index error defining vector " ++ nam)
 
 
+mkPatternVector :: Manifold
+                -> String
+                -> VarIndex
+                -> Expr
+mkPatternVector m nam i =
+    let
+        indices = [ i ]
+    in
+        if  checkIndicesInManifold m indices
+            then
+                unsafePerformIO $ do
+                    ident <- nextId
+                    return $ Symbol $ Tensor T { tensorIdentifier    = ident
+                                               , tensorName          = nam
+                                               , tensorTeXName       = nam
+                                               , manifold            = m
+                                               , tensorClass         = General
+                                               , tensorType          = Pattern
+                                               , slots               = indices
+                                               , symmetry            = oneIndex
+                                               , tensorComplexity    = Real
+                                               , tensorCommutativity = Commuting
+                                               , components          = Nothing }
+            else error ("index error defining vector " ++ nam)
+
+
 mkVector_ :: Manifold
           -> String
           -> String

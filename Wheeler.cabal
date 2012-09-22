@@ -31,6 +31,8 @@ Library
     Math.Symbolic.Wheeler.Matchable
     Math.Symbolic.Wheeler.Numeric
     Math.Symbolic.Wheeler.Pattern
+    Math.Symbolic.Wheeler.Replacer
+    Math.Symbolic.Wheeler.Rules
     Math.Symbolic.Wheeler.Symbol
     Math.Symbolic.Wheeler.Tensor
     Math.Symbolic.Wheeler.TensorBasics

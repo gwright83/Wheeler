@@ -14,16 +14,11 @@ import Data.Maybe
 import Math.Symbolic.Wheeler.Canonicalize
 import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.MetricTensor
+import Math.Symbolic.Wheeler.Replacer
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
 
-
-
-mapExpr :: (Expr -> Expr) -> Expr -> Expr
-mapExpr f (Sum ts)     = f (Sum (map f ts))
-mapExpr f (Product fs) = f (Product (map f fs))
-mapExpr f e = f e
 
 
 containsTensor :: Expr -> Expr -> Bool

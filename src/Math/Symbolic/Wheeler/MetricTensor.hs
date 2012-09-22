@@ -18,6 +18,7 @@ import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.DummyIndices
 import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
+import Math.Symbolic.Wheeler.Replacer
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
@@ -100,18 +101,6 @@ findExpr p e = let
 findExpr' :: (Expr -> Bool) -> Expr -> Maybe (Expr, Breadcrumbs)
 findExpr' p e = listToMaybe $ findExprs p e
 
-
-replaceExpr :: Breadcrumbs -> Expr -> Expr -> Expr
-replaceExpr bc e' e = snd $ re bc e' ([], e)
-    where
-      re targetLoc rexpr (currentLoc, expr) = if currentLoc == targetLoc
-                                                  then (currentLoc, rexpr)
-                                                  else re' targetLoc rexpr (currentLoc, expr)
-                                                       
-      re' targetLoc rexpr (currentLoc, Sum ts)     = (currentLoc, Sum     (zipWith (\n x -> snd (re targetLoc rexpr ((Scxt n) : currentLoc, x))) [1..] ts))
-      re' targetLoc rexpr (currentLoc, Product fs) = (currentLoc, Product (zipWith (\n x -> snd (re targetLoc rexpr ((Pcxt n) : currentLoc, x))) [1..] fs))
-      re' _ _ u@(_, _) = u
-  
 
 eliminateOneMetric :: Expr -> Expr
 eliminateOneMetric e =  let
