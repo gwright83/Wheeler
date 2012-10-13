@@ -110,7 +110,10 @@ instance Matchable T where
       patName = TPat (tensorName pat)
       v = Map.lookup patName bindings
     if isJust v
-      then return (fromJust v == TVar subj)
+      then do 
+        let (TVar v') = fromJust v
+        return ((tensorName v') == (tensorName subj)) -- need to change this to take account of indices!
+                                            -- just compare kernel symbols!
       else do put (Map.insert patName (TVar subj) bindings, nl)
               return True
     

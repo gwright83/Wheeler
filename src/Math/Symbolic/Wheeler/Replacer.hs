@@ -29,8 +29,8 @@ import Math.Symbolic.Wheeler.TensorUtilities
 -- the use the environment to insert the expression 
 -- repl into the to expression subj.
 --
---replace :: MatchInfo -> Expr -> Expr -> Expr
---replace minfo repl subj
+replace :: MatchInfo -> Expr -> Expr -> Expr
+replace minfo repl subj = subj
 
 
 -- Take an expression an replace all of the patterns
