@@ -171,7 +171,7 @@ eliminateKroneckerTrace e = let
   
 applyUntilStable :: Eq a => (a -> a) -> a -> a
 applyUntilStable f x
-  | x == y = x
+  | x == y    = x
   | otherwise = applyUntilStable f y
   where
     y = f x

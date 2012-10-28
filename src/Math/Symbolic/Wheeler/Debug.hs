@@ -51,5 +51,22 @@ traceCall3 msg a a' r =
                show retval ++
                "\n") retval
 
+traceCall3' :: (Show a, Show b, Show c, Show d) => String -> (a -> b -> c -> d) -> a -> b -> c -> d
+traceCall3' msg fn a a' a'' =
+    let
+        retval = fn a a' a''
+    in 
+        trace (msg         ++
+               " "         ++
+               show a      ++
+               " "         ++
+               show a'     ++
+               " "         ++
+               show a''    ++
+               " returns " ++
+               show retval ++
+               "\n") retval
+
+
 traceCall_ :: (Show a, Show b) => String -> a -> b -> b
 traceCall_ msg arg val = trace (msg ++ " " ++ show arg ++ " returns " ++ show val ++ "\n") val

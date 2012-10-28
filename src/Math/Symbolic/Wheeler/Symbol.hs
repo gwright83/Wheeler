@@ -167,6 +167,30 @@ mkNcPatternSymbol s rep = unsafePerformIO $ do
                                        }
 
 
+mkPlaceholder :: Symbol
+mkPlaceholder = unsafePerformIO $ do
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = "PHLD"
+                                       , simpleTeXName       = "PHLD"
+                                       , simpleType          = Placeholder
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = Commuting
+                                       }
+
+
+mkNcPlaceholder :: String -> Symbol
+mkNcPlaceholder rep = unsafePerformIO $ do 
+                     ident <- nextId
+                     return $ Simple S { simpleIdentifier    = ident
+                                       , simpleName          = "PHLD"
+                                       , simpleTeXName       = "PHLD"
+                                       , simpleType          = Placeholder
+                                       , simpleComplexity    = Real
+                                       , simpleCommutativity = NonCommuting (RepSpace rep)
+                                       }
+
+
 -- Show the internal details of a Symbol:
 
 showsSymbol_ :: Symbol -> ShowS

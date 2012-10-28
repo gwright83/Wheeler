@@ -18,11 +18,14 @@ import Data.List
 import Data.Maybe
 import Data.Ratio
 
+import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.DummyIndices
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Numeric
 import Math.Symbolic.Wheeler.NumericRational
 import Math.Symbolic.Wheeler.SumOrd
+import Math.Symbolic.Wheeler.SimpleSymbol
+import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.TensorBasics
 
 
@@ -82,6 +85,10 @@ isPositive (Const (I n))   = n > 0
 isPositive (Const (Q n d)) = (n % d) > 0
 isPositive _               = False
 
+isPlaceholder :: Expr -> Bool
+isPlaceholder (Symbol (Simple s)) = simpleType s == Placeholder
+isPlaceholder _                   = False
+
 
 -- simplifyConstant checks rationals for explicit division
 -- by zero, otherwise it returns the argument unchanged.
@@ -127,8 +134,8 @@ simplifyFactors (u1 : u2 : [])
             p = simplifyRNE (Product [u1,u2])
         in
             if p == (Const 1) then [] else [p]
-    | isConstantOne u1 = [u2]
-    | isConstantOne u2 = [u1]
+    | isConstantOne u1 || isPlaceholder u1 = [u2]
+    | isConstantOne u2 || isPlaceholder u2 = [u1]
                          -- A special case follows:  I don't want tensor expressions to
                          -- be expressed as powers.  Doing so would particularly
                          -- mess up canonicalized tensor patterns containing wildcards.
@@ -372,8 +379,8 @@ simplifyTerms (u1 : u2 : [])
             p = simplifyRNE (Sum [u1, u2])
         in
             if p == (Const 0) then [] else [p]
-    | isConstantZero u1 = [u2]
-    | isConstantZero u2 = [u1]
+    | isConstantZero u1 || isPlaceholder u1 = [u2]
+    | isConstantZero u2 || isPlaceholder u2 = [u1]
     | termPart u1 == termPart u2 =
         let
             s = simplifySum (Sum [constantPart u1, constantPart u2])

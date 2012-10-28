@@ -41,4 +41,5 @@ instance Show Breadcrumbs' where
 
 data SymbolType = Regular
                 | Pattern
+                | Placeholder
                 deriving (Eq, Show)
