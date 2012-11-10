@@ -564,7 +564,7 @@ instance Read Expr where
 
 
 mapExpr :: (Expr -> Expr) -> Expr -> Expr
-mapExpr f (Sum ts)     = f (Sum (map f ts))
-mapExpr f (Product fs) = f (Product (map f fs))
+mapExpr f (Sum ts)     = f (Sum (map (mapExpr f) ts))
+mapExpr f (Product fs) = f (Product (map (mapExpr f) fs))
 mapExpr f e = f e
 

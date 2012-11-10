@@ -104,7 +104,7 @@ simplifyConstant _                 = error "simplifyConstant applied to non-cons
 -- p. 98.
 
 simplifyProduct :: Expr -> Expr
-simplifyProduct (Product fs) = sp (fs)
+simplifyProduct (Product fs) = sp (filter (not . isPlaceholder) fs)
     where
         sp fs'
             | null fs'                = Const 1
@@ -134,8 +134,8 @@ simplifyFactors (u1 : u2 : [])
             p = simplifyRNE (Product [u1,u2])
         in
             if p == (Const 1) then [] else [p]
-    | isConstantOne u1 || isPlaceholder u1 = [u2]
-    | isConstantOne u2 || isPlaceholder u2 = [u1]
+    | isConstantOne u1 = [u2]
+    | isConstantOne u2 = [u1]
                          -- A special case follows:  I don't want tensor expressions to
                          -- be expressed as powers.  Doing so would particularly
                          -- mess up canonicalized tensor patterns containing wildcards.
@@ -356,15 +356,18 @@ simplifyIntegerPower _ = error "simplifyIntegerPower applied to non-power"
 -- not completely defined on p. 105 of Cohen.
 --
 simplifySum :: Expr -> Expr
-simplifySum (Sum ts)
-    | elem Undefined ts = Undefined
-    | null (tail ts)         = head ts
-    | otherwise              = simplifySum' (simplifyTerms ts)
-    where
-        simplifySum' :: [ Expr ] -> Expr
-        simplifySum' []       = Const 0
-        simplifySum' (t : []) = t
-        simplifySum' tt       = Sum tt
+simplifySum (Sum ts) = ss (filter (not . isPlaceholder) ts)
+  where ss ts' 
+          | elem Undefined ts' = Undefined
+          | null (tail ts')    = head ts'
+          | otherwise          =
+            let
+              simplifySum' :: [ Expr ] -> Expr
+              simplifySum' []       = Const 0
+              simplifySum' (t : []) = t
+              simplifySum' tt       = Sum tt
+            in
+             simplifySum' (simplifyTerms ts')
 simplifySum _ = error "simplifySum applied to non-sum"
 
 
@@ -379,8 +382,8 @@ simplifyTerms (u1 : u2 : [])
             p = simplifyRNE (Sum [u1, u2])
         in
             if p == (Const 0) then [] else [p]
-    | isConstantZero u1 || isPlaceholder u1 = [u2]
-    | isConstantZero u2 || isPlaceholder u2 = [u1]
+    | isConstantZero u1 = [u2]
+    | isConstantZero u2 = [u1]
     | termPart u1 == termPart u2 =
         let
             s = simplifySum (Sum [constantPart u1, constantPart u2])

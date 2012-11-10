@@ -16,7 +16,6 @@ import Data.DList (empty, snoc)
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
---import Debug.Trace
 
 
 import Math.Symbolic.Wheeler.Canonicalize
@@ -55,6 +54,13 @@ data MatchInfo = MatchInfo {
 --
 matches :: Expr -> Expr -> [ MatchInfo ]
 matches pat subj = map snd $ filter fst $ map (oneMatch pat) (subExprs subj)
+
+
+-- hasMatch is a utility function that returns True is the
+-- pattern matches, False if not.
+--
+hasMatch :: Expr -> Expr -> Bool
+hasMatch pat subj = (not . null) $ matches pat subj
 
 
 -- Given an expression, generate a list of subtrees and the breadcrumb
@@ -293,3 +299,20 @@ prefixMatch (p : ps) ((bc, x) : xs) = do
   v' <- oneMatch_ p x bc
   return (v && v')
 
+
+partitionSum :: (Expr -> Bool) -> Expr -> (Expr, Expr)
+partitionSum p (Sum ts) =
+  let
+    (t, t') = partition p ts 
+  in
+   (Sum t, Sum t')
+partitionSum _ e = (0, e)
+
+
+partitionProduct :: (Expr -> Bool) -> Expr -> (Expr, Expr)
+partitionProduct p (Product fs) =
+  let
+    (mfs, nfs) = partition p fs 
+  in
+   (Product mfs, Product nfs)
+partitionProduct _ e = (1, e)

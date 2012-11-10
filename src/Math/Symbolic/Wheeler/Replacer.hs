@@ -86,6 +86,9 @@ replaceIn bcs repl subj =
 -- Take an expression an replace all of the patterns
 -- with their values from the match environment.
 --
+-- XXX FIXME XXX
+-- Doesn't replace all of the patterns.
+--
 unPattern :: MatchInfo -> Expr -> Expr
 unPattern minfo ex =
   let
@@ -106,7 +109,7 @@ replacePattern env e@(Symbol (Tensor t)) =
         TVar t' = fromJust repl
         s'      = map (replaceSlot env) (slots t)
         in Symbol $ Tensor $ t' { slots = s'}
-      else error "replacePattern patern without binding"
+      else error "replacePattern pattern without binding"
   else
     let
       s' = map (replaceSlot env) (slots t)

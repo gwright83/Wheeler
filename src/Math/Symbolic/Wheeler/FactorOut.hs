@@ -13,12 +13,24 @@ import Data.Maybe
 
 import Math.Symbolic.Wheeler.Canonicalize
 import Math.Symbolic.Wheeler.Expr
+import Math.Symbolic.Wheeler.Matcher2
 import Math.Symbolic.Wheeler.MetricTensor
 import Math.Symbolic.Wheeler.Replacer
 import Math.Symbolic.Wheeler.Symbol
 import Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
 
+
+factorOut :: Expr -> Expr -> Expr
+factorOut fct e@(Sum ts) =
+  let
+    hasFactor = all (hasMatch fct) ts
+    mats      = matches fct e
+  in
+   if hasFactor
+   then fct * (deleteMatches mats e)
+     else e
+factorOut _ e = e
 
 
 containsTensor :: Expr -> Expr -> Bool
