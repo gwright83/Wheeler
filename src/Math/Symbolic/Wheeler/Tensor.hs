@@ -12,7 +12,6 @@
 module Math.Symbolic.Wheeler.Tensor where
 
 import Data.Maybe
---import Prelude hiding ((^))
 import System.IO.Unsafe
 
 import Math.Symbolic.Wheeler.Common
@@ -69,7 +68,10 @@ instance Eq T where
                (slots x      == slots y)
 
 instance Ord T where
-    compare x y = if isCommuting x || isCommuting y 
+    compare x y = if (isCommuting x && not (tensorType x == Pattern ||
+                                            any isPatternVarIndex (slots x))) ||
+                     (isCommuting y && not (tensorType y == Pattern ||
+                                            any isPatternVarIndex (slots y)))
                     then if tensorName x /= tensorName y
                             then compare (tensorName x) (tensorName y)
                             else compare (slots x) (slots y)
@@ -208,6 +210,12 @@ instance Show VarIndex where
     showsPrec _ (Covariant     (Component i)) = showString "(-"     .
                                                 showString (show i) .
                                                 showString ")"
+
+
+isPatternVarIndex :: VarIndex -> Bool
+isPatternVarIndex (Covariant     (Abstract i)) = indexType i == Pattern
+isPatternVarIndex (Contravariant (Abstract i)) = indexType i == Pattern
+isPatternVarIndex _ = False
 
 
 -- An index itself can either be abstract (see

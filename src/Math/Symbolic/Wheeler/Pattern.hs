@@ -30,7 +30,6 @@ isPattern (Symbol (DiracSpinor d)) = diracSpinorType d == Pattern
 isPattern (Symbol (Tensor t))      = tensorType t      == Pattern
 isPattern _ = False
 
-
 getPattern :: Expr -> PatternVar
 getPattern (Symbol (Simple s))      = SPat (simpleName s)
 getPattern (Symbol (DiracSpinor d)) = DPat (diracSpinorName d)
@@ -38,8 +37,15 @@ getPattern (Symbol (Tensor t))      = TPat (tensorName t)
 getPattern _ = error "getPattern called on non-pattern expression"
 
 
+hasVarIndexPattern :: Expr -> Bool
+hasVarIndexPattern (Symbol (Tensor t)) = any isPatternVarIndex (slots t)
+hasVarIndexPattern _ = False
+
 getVarIndexPattern :: VarIndex -> PatternVar
 getVarIndexPattern (Covariant     (Abstract i)) = IPat (indexName i)
 getVarIndexPattern (Contravariant (Abstract i)) = IPat (indexName i)
 getVarIndexPattern (Covariant     (Component _)) = error "getVarIndexPattern of component index"
 getVarIndexPattern (Contravariant (Component _)) = error "getVarIndexPattern of component index"
+
+isPatternOrHasVarIndexPattern :: Expr -> Bool
+isPatternOrHasVarIndexPattern e = isPattern e || hasVarIndexPattern e

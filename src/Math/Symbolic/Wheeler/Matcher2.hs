@@ -20,7 +20,6 @@ import Data.Maybe
 
 import Math.Symbolic.Wheeler.Canonicalize
 import Math.Symbolic.Wheeler.Common
-import Math.Symbolic.Wheeler.Debug
 import Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Matchable
 import Math.Symbolic.Wheeler.Pattern
@@ -147,14 +146,13 @@ sumMatch _ [] _           = do return False
 sumMatch pats subjs node  = do
   let
     subjs' = zipWith (\x y -> (node `snoc` Scxt x, y)) [1..] subjs
-    (vpats, epats) = partition isPattern pats
-    pats' = epats ++ vpats
+    (vpats, epats) = partition isPatternOrHasVarIndexPattern pats
     
   -- The current node matches, as it is a Sum in both
   -- the pattern and subject tree. Record the node.
   (env, nl) <- get
   put (env, node : nl)
-  unorderedMatch pats' subjs'
+  unorderedMatch epats vpats subjs'
 
 
 -- A complication of the unordered match is that the
@@ -162,27 +160,79 @@ sumMatch pats subjs node  = do
 -- containing a variable.  This prevents the pattern
 -- variable from capturing a term or factor that should
 -- match an explicit term or factor.  So the input
--- list of expression is required to be sorted, with
--- explicit patterns ahead of all variable patterns.
+-- list of expressions is passed as two separate lists, the
+-- first containing the explicit patterns, the second, the
+-- patterns ocntaining variables.
 --
-unorderedMatch :: [ Expr ]
-               -> [ (Breadcrumbs', Expr) ]
-               -> State Environ Bool
-unorderedMatch []       _     = return True
-unorderedMatch (p : ps) subjs = do
-  let
-    um :: Expr
-       -> [ (Breadcrumbs', Expr) ]
-       -> [ (Breadcrumbs', Expr) ]
-       -> State Environ (Bool, [ (Breadcrumbs', Expr) ])
-    um _ [] fs = return (False, fs)
-    um pat (sbj@(node, s) : ss) fs = do
-      mat <- oneMatch_ pat s node
-      if mat then return (True, ss ++ fs) else um pat ss (sbj : fs)
-  
-  (mat, subjs') <- um p subjs []
-  if mat then unorderedMatch ps subjs' else return False
+unorderedMatch :: [ Expr ]                    -- explicit patterns
+               -> [ Expr ]                    -- patterns with variables
+               -> [ (Breadcrumbs', Expr) ]    -- the subject expressions, zipped with Breadcrumbs'
+               -> State Environ Bool          -- returns whether there was a match, and its Environ
+unorderedMatch ep vp subjs =
+  case (ep, vp, subjs) of
+    ([], [], _)      -> return True     -- If there are no patterns left, everything
+                                        -- matched and we return True.
+    (_, _,  [])      -> return False    -- If the subject expression is exhausted               
+                                        -- before all the patterns match, return False.
+    ([], _, _)       -> unorderedVariableMatch vp subjs
+    ((p : ps), _, _) -> do
+      (mat, subjs') <- unorderedExplicitMatch p subjs
+      if mat
+        then unorderedMatch ps vp subjs'
+        else return False
 
+
+-- unorderedVariableMatch takes a list of pattern expressions and
+-- searches for them in the list of subject expressions.  The
+-- control is more complicated than in the case of explicit patterns,
+-- since it may be necessary to backtrack.  I don't try to do
+-- this in any sophisticated way; if the pattern fails I simply
+-- restart the match on the tail of the subject expression list.
+--
+unorderedVariableMatch :: [ Expr ]
+                      -> [ (Breadcrumbs', Expr) ]
+                      -> State Environ Bool
+unorderedVariableMatch [] _     = return True
+unorderedVariableMatch _  []    = return False
+unorderedVariableMatch vp subjs = do
+  savedEnv <- get    -- save the environment in case of restart.
+  mat      <- unorderedVariableMatch' vp subjs
+  if mat
+    then return True
+    else do
+    put savedEnv
+    unorderedVariableMatch vp (tail subjs)
+
+
+unorderedVariableMatch' :: [ Expr ]
+                        -> [ (Breadcrumbs', Expr) ]
+                        -> State Environ Bool
+unorderedVariableMatch' []       _    = return True           
+unorderedVariableMatch' (p : ps) subjs = do
+  (mat, subjs') <- unorderedExplicitMatch p subjs
+  if mat
+    then unorderedVariableMatch' ps subjs'
+    else return False
+         
+  
+-- unorderedExplicitMatch takes a non-pattern expression
+-- and searches for it in the list of subject expressions
+-- not yet checked.  If the expression is found, True
+-- is returned along with a list of the expressions that
+-- did not match.
+--
+unorderedExplicitMatch :: Expr                        -- pattern expression
+                       -> [ (Breadcrumbs', Expr) ]    -- subject expressions not yet checked
+                       -> State Environ (Bool, [ (Breadcrumbs', Expr) ])
+unorderedExplicitMatch pat subjs = um pat subjs []
+  where
+    um _ [] fs = return (False, fs)
+    um p (sbj@(node, s) : ss) fs = do
+      mat <- oneMatch_ pat s node
+      if mat
+        then return (True, ss ++ fs)
+        else um p ss (sbj : fs)
+  
 
 -- Match the patterns against the members of the expression list
 -- in the way appropriate to a product: in any order for commuting
@@ -195,7 +245,7 @@ productMatch :: [ Expr ]
              -> State Environ Bool
 productMatch pats subjs node = do
   let
-    -- The subject and pattern factors are firs
+    -- The subject and pattern factors are first
     -- sorted by representation space.  This will
     -- allow treating commuting and noncommuting factors
     -- differently
@@ -214,22 +264,14 @@ productMatch pats subjs node = do
     commutingPatternFactors    = lookup [] patternFactorsByRepSpace
     noncommutingPatternFactors = filter (not . null . fst) patternFactorsByRepSpace
     
-    cpats = if isJust commutingPatternFactors
-            then let 
-              (vp, ep) = partition isPattern (fromJust commutingPatternFactors)
-              in
-               ep ++ vp
-            else []
+    (vpats, epats) = if isJust commutingPatternFactors
+                     then partition isPatternOrHasVarIndexPattern (fromJust commutingPatternFactors)
+                     else ([], [])
   
-  -- handle all of the cases of commuting patterns/subjects:
-  case (cpats, csubjs) of
-    ([], _) -> orderedMatches noncommutingPatternFactors noncommutingSubjectFactors
-    (_, []) -> return False
-    _       -> do     
-      mat <- unorderedMatch cpats csubjs  
-      if mat
-        then orderedMatches noncommutingPatternFactors noncommutingSubjectFactors
-        else return False
+  mat <- orderedMatch noncommutingPatternFactors noncommutingSubjectFactors
+  if mat
+    then unorderedMatch epats vpats csubjs
+    else return False
   
 
 groupFactors' :: [ (Breadcrumbs', Expr) ]
@@ -253,12 +295,12 @@ groupExprs' pp@((_, p) : _) =
 
 -- Match noncommuting factors.
 --
-orderedMatches :: [ ([ String ], [ Expr ]) ]
-               -> [ ([ String ], [ (Breadcrumbs', Expr) ]) ]
-               -> State Environ Bool
-orderedMatches []  _          = return True
-orderedMatches _   []         = return False
-orderedMatches (p : ps) subjs = do
+orderedMatch :: [ ([ String ], [ Expr ]) ]
+             -> [ ([ String ], [ (Breadcrumbs', Expr) ]) ]
+             -> State Environ Bool
+orderedMatch []  _          = return True
+orderedMatch _   []         = return False
+orderedMatch (p : ps) subjs = do
   let
     subj = lookup (fst p) subjs
   if isNothing subj
@@ -267,7 +309,7 @@ orderedMatches (p : ps) subjs = do
       mat <- infixMatch (snd p) (fromJust subj)
       if not mat
         then return False
-        else orderedMatches ps subjs
+        else orderedMatch ps subjs
 
   
 -- Test if the patterns are satisfied by contiguous members

@@ -31,7 +31,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
 import Math.Symbolic.Wheeler.Common
 import Math.Symbolic.Wheeler.Symbol
-import Math.Symbolic.Wheeler.Tensor
+import {-# SOURCE #-} Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
 
 
