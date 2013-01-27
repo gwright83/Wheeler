@@ -7,7 +7,19 @@
 -- Gregory Wright, 31 August 2011
 --
 
-module Math.Symbolic.Wheeler.TensorBasics where
+module Math.Symbolic.Wheeler.TensorBasics ( 
+  allSame,
+  allTermsTensor,
+  bothFreeAndDummy,
+  checkTensor,
+  getAllIndices,
+  hasCommonElement,
+  hasRepeats,
+  hasRepeats',
+  hasTensor,
+  exprIndices,
+  tensorKernel
+) where
 
 
 import Data.Maybe

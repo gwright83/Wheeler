@@ -8,17 +8,18 @@
 --
 
 
-module Math.Symbolic.Wheeler.DummyIndices (
-  IndexList,
-  IndexTrail,
-  collectIndices,
-  collectIndices_,
-  collectIndices__,
-  replaceIndex,
-  uniqueDummies,
-  uniqueDummies_,
-  uniqueDummies__
-) where
+module Math.Symbolic.Wheeler.DummyIndices where
+-- module Math.Symbolic.Wheeler.DummyIndices (
+--   IndexList,
+--   IndexTrail,
+--   collectIndices,
+--   collectIndices_,
+--   collectIndices__,
+--   replaceIndex,
+--   uniqueDummies,
+--   uniqueDummies_,
+--   uniqueDummies__
+-- ) where
 
 
 import Data.List
@@ -26,6 +27,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import Data.Ord (comparing)
 import Data.Tuple
+import Debug.Trace
 import System.IO.Unsafe (unsafePerformIO)
 
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
@@ -109,23 +111,33 @@ collectIndices__ e = map (sortBy (comparing (length . snd)))                    
 -- first scans the passed index lists and generates all possible
 -- pairings of identically-named indices.
 --
+-- This is clearly a quadratic algorithm, since it considers all
+-- pairs that can be generated from the input IndexList.
+-- There must be a way -- sorting, perhaps? -- to speed this
+-- up.
+--
+-- It also seems as if quickly screening the input lists
+-- to determine if there are any replacements to be done
+-- at all would be worthwhile.
+--
 mkReplacements :: [ IndexList ] -> [ IndexTrail ]
 mkReplacements []  = []
 mkReplacements ils = let
-        pairs      = filter (not . null) $ map mkPairs ils
-        pairables  = map (map findCommonPrefix) pairs
-        pairables' = map (sortBy (\x y -> compare (commonPrefix y)
-                                                  (commonPrefix x))) pairables
+        --pairs      = (\x -> trace ("lengths in pair list is " ++ show (map length x)) x) $ filter (not . null) $ map mkPairs ils
+        pairs      = {-# SCC "pairs" #-} filter (not . null) $ map mkPairs ils
+        pairables  = {-# SCC "pairables" #-} map (map findCommonPrefix) pairs
+        pairables' = {-# SCC "pairables'" #-} map (sortBy (\x y -> compare (commonPrefix y)
+                                                  (commonPrefix x))) $ (\x -> trace ("pairables length = " ++ show (map length x)) x) pairables
 
-        resolvables = map (partition (isProductOrTensorCxt . prefixDiff)) pairables'
+        resolvables = {-# SCC "resolvables" #-} map (partition (isProductOrTensorCxt . prefixDiff)) pairables'
 
-        resolutions (ps, ss) = let
+        resolutions (ps, ss) = {-# SCC "resolutions" #-} let
                 u = productEdits $ resolveProduct ps
                 v = sumEdits ss
             in
                 resolveSum u v
     in
-        concatMap resolutions resolvables
+        (\x -> trace ("length of mkReplacements is " ++ show (length x)) x) $ concatMap resolutions resolvables
 
 
 mkPairs :: IndexList -> [ (IndexTrail, IndexTrail) ]
@@ -257,9 +269,9 @@ uniqueDummies t = replaceIndices t $ mkReplacements $ collectIndices t
 -- Top level function that relabels existing dummy indices
 --
 uniqueDummies_   :: Expr -> Expr
-uniqueDummies_ t = replaceIndices t $ mkReplacements $ collectIndices_ t
+uniqueDummies_ t = replaceIndices t $ mkReplacements $ collectIndices_ ((\x -> trace ("uniqueDummies_ : " ++ show x) x) t)
 
 -- Top level function that relabels repeated indices, skipping pattern indices
 --
 uniqueDummies__   :: Expr -> Expr
-uniqueDummies__ t = replaceIndices t $ mkReplacements $ collectIndices__ t
+uniqueDummies__ t = replaceIndices t $ mkReplacements $ collectIndices__ ((\x -> trace ("uniqueDummies__ : " ++ show x) x) t)

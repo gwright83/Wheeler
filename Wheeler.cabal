@@ -49,6 +49,7 @@ Library
     Math.Symbolic.Wheeler.Named
     Math.Symbolic.Wheeler.NumericRational
     Math.Symbolic.Wheeler.Precedence
+    Math.Symbolic.Wheeler.Sort
     Math.Symbolic.Wheeler.SumOrd
     Math.Symbolic.Wheeler.SimpleSymbol
     Math.Symbolic.Wheeler.TensorSymmetries
@@ -56,6 +57,7 @@ Library
     Math.Symbolic.Wheeler.UniqueID
 
   Build-Depends:
+    array >= 0.3.0.3,
     base >= 3 && < 5,
     containers >= 0.4.1.0,
     dlist >= 0.5,
