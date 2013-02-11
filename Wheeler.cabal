@@ -49,7 +49,6 @@ Library
     Math.Symbolic.Wheeler.Named
     Math.Symbolic.Wheeler.NumericRational
     Math.Symbolic.Wheeler.Precedence
-    Math.Symbolic.Wheeler.Sort
     Math.Symbolic.Wheeler.SumOrd
     Math.Symbolic.Wheeler.SimpleSymbol
     Math.Symbolic.Wheeler.TensorSymmetries

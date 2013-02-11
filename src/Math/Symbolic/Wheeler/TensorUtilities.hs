@@ -66,6 +66,13 @@ uniqueDummy m = do
                                               , indexTeXName  = show n
                                               , indexType     = Regular
                                               , indexIsDummy  = True }
+      
+mkTestDummy :: Manifold -> String -> VarIndex
+mkTestDummy m n = Contravariant $ Abstract $ Index { indexManifold = m
+                                                   , indexName     = n
+                                                   , indexTeXName  = n
+                                                   , indexType     = Regular
+                                                   , indexIsDummy  = True }
 
 
 isCovariant :: VarIndex -> Bool

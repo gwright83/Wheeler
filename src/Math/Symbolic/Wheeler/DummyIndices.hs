@@ -8,26 +8,22 @@
 --
 
 
-module Math.Symbolic.Wheeler.DummyIndices where
--- module Math.Symbolic.Wheeler.DummyIndices (
---   IndexList,
---   IndexTrail,
---   collectIndices,
---   collectIndices_,
---   collectIndices__,
---   replaceIndex,
---   uniqueDummies,
---   uniqueDummies_,
---   uniqueDummies__
--- ) where
+module Math.Symbolic.Wheeler.DummyIndices (
+  IndexList,
+  VarIndexInContext (..),
+  collectIndices,
+  collectIndices_,
+  collectIndices__,
+  replaceIndex,
+  uniqueDummies,
+  uniqueDummies_,
+  uniqueDummies__
+) where
 
-
-import Data.List
-import Data.Maybe
+  
 import qualified Data.Map as Map
-import Data.Ord (comparing)
-import Data.Tuple
-import Debug.Trace
+import Data.Maybe
+import Data.List
 import System.IO.Unsafe (unsafePerformIO)
 
 import {-# SOURCE #-} Math.Symbolic.Wheeler.Expr
@@ -37,26 +33,20 @@ import {-# SOURCE #-} Math.Symbolic.Wheeler.Tensor
 import Math.Symbolic.Wheeler.TensorUtilities
 
 
-type IndexTrail = (VarIndex, Breadcrumbs)
-type IndexList  = [ IndexTrail ]
+data VarIndexInContext = VarIndexInContext {
+  index   :: VarIndex,
+  context :: [ Cxt ]
+} deriving (Show)
 
+instance Eq VarIndexInContext where
+  (==) i j = toContravariant (index i) == toContravariant (index j)
 
-data PairPrefix = PairPrefix { commonPrefix :: Breadcrumbs
-                             , prefixDiff   :: Cxt
-                             , indexTrail   :: IndexTrail
-                             , indexTrail'  :: IndexTrail
-                             } deriving (Show)
-
-isProductCxt :: Cxt -> Bool
-isProductCxt (Pcxt _) = True
-isProductCxt       _ = False
-
-isTensorCxt :: Cxt -> Bool
-isTensorCxt (Tcxt _) = True
-isTensorCxt       _  = False
-
-isProductOrTensorCxt :: Cxt -> Bool
-isProductOrTensorCxt x = isProductCxt x || isTensorCxt x
+instance Ord VarIndexInContext where
+  compare i j = compare (toContravariant $ index i) (toContravariant $ index j)
+  
+  
+type IndexList      =  [ VarIndexInContext ]
+type MatchedIndices = [[ VarIndexInContext ]]
 
 
 -- collectIndices records the breadcrumb trail to each index and
@@ -66,181 +56,158 @@ isProductOrTensorCxt x = isProductCxt x || isTensorCxt x
 --
 -- As of 14 May 12, don't replace indices that are already dummies.
 --
-collectIndices :: Expr -> [ IndexList ]
-collectIndices e = map (sortBy (comparing (length . snd)))     $
-                   groupBy (equalling (toContravariant . fst)) $
-                   sortBy  (comparing (toContravariant . fst)) $
-                   filter (not . isDummy . fst)                $ fi [] [] e
-    where
-        fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
-        fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
-        fi cxt il (Sum  ts)    = concatMap (\(n, x) -> fi ((Scxt n) : cxt) il x) $ zip [1..] ts
-        fi _   il _            = il
+resolveDummies :: (VarIndex -> Bool) -> Expr -> MatchedIndices
+resolveDummies itest ex = fst $ findIndexPairs ex []
+  where
+    cxtList cxtName cxt = map (\i -> (cxtName i) : cxt) [1.. ]
+    
+    findIndexPairs :: Expr -> [ Cxt ] -> ( MatchedIndices, IndexList )
+    findIndexPairs expr cxt = case expr of
+      (Sum ts)      -> let  
+        contexts  = cxtList Scxt cxt
+        indexList = zipWith findIndexPairs ts contexts
+        in pairableSumIndices indexList
+        
+      (Product fs)  -> let
+        contexts  = cxtList Pcxt cxt
+        indexList = zipWith findIndexPairs fs contexts
+        in pairProductIndices indexList
+        
+      (Symbol (Tensor t)) -> let
+        contexts = cxtList Tcxt cxt
+        ics      = filter (itest . index) $
+                   zipWith (\i c -> VarIndexInContext { index   = i
+                                                      , context = c }) (slots t) contexts
+        in groupEquals ics
+           
+      _ -> ( [], [] )
 
-        equalling p x y = (p x) == (p y)
 
 
-collectIndices_ :: Expr -> [ IndexList ]
-collectIndices_ e = map (sortBy (comparing (length . snd)))    $
-                   groupBy (equalling (toContravariant . fst)) $
-                   sortBy  (comparing (toContravariant . fst)) $ fi [] [] e
-    where
-        fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
-        fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
-        fi cxt il (Sum  ts)    = concatMap (\(n, x) -> fi ((Scxt n) : cxt) il x) $ zip [1..] ts
-        fi _   il _            = il
+excludeNone :: VarIndex -> Bool
+excludeNone = const True
 
-        equalling p x y = (p x) == (p y)
+excludeDummies :: VarIndex -> Bool
+excludeDummies = not . isDummy
+
+excludeDummiesAndPatterns :: VarIndex -> Bool
+excludeDummiesAndPatterns i = not (isPatternVarIndex i || isDummy i) 
 
 
-collectIndices__ :: Expr -> [ IndexList ]
-collectIndices__ e = map (sortBy (comparing (length . snd)))                       $
-                     groupBy (equalling (toContravariant . fst))                   $
-                     sortBy  (comparing (toContravariant . fst))                   $
-                     filter (not . (\x -> isPatternVarIndex x || isDummy x) . fst) $ fi [] [] e
-    where
-        fi cxt il (Symbol (Tensor t))  = (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t)) ++ il
-        fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
-        fi cxt il (Sum  ts)    = concatMap (\(n, x) -> fi ((Scxt n) : cxt) il x) $ zip [1..] ts
-        fi _   il _            = il
+pairableSumIndices :: [ ( MatchedIndices, IndexList ) ]    
+                   ->   ( MatchedIndices, IndexList )
+pairableSumIndices termIndices = let
+  previouslyPaired    = concatMap fst termIndices
+  potentiallyPairable = concat $ elementsOfEach $ map snd termIndices
+  in
+   (previouslyPaired, potentiallyPairable)
+  
+  
+pairProductIndices :: [ ( MatchedIndices, IndexList ) ]    
+                   ->   ( MatchedIndices, IndexList )
+pairProductIndices factorIndices = let
+  previouslyPaired         = concatMap fst factorIndices
+  (newlyPaired, notPaired) = presentInTwoLists $ map snd factorIndices 
+  in (previouslyPaired ++ newlyPaired, notPaired)
 
-        equalling p x y = (p x) == (p y)
 
+presentInTwoLists :: [ IndexList ] -> ( MatchedIndices, IndexList )
+presentInTwoLists il = let
+  
+  indexAssoc :: [ (VarIndexInContext, [ (VarIndexInContext, Int) ]) ]
+  indexAssoc = concat $
+               zipWith (\x y ->
+                         zipWith (\x' y' -> (x', [ (x', y') ])) x (repeat y)
+                       ) il [1..]
+            
+  indexMap        = Map.fromListWith (++) indexAssoc
+  
+  fromDifferentLists [] = False
+  fromDifferentLists ((_, x) : xs) = not $ all (\y -> x == snd y) xs
+  
+  (repeatedIndices', unmatchedIndices) = Map.partition fromDifferentLists indexMap
+
+  repeatedIndices'' = map (map fst) $ (map snd) (Map.toList repeatedIndices')
+  unmatchedIndices' = concatMap (map fst) $ (map snd) (Map.toList unmatchedIndices)
+  in
+    (repeatedIndices'', unmatchedIndices')
+
+
+
+-- elementsOfEach takes a list of lists and returns a list
+-- of elements appearing in every one of the input lists.
+--
+elementsOfEach :: [[ VarIndexInContext ]]
+               -> [[ VarIndexInContext ]]
+elementsOfEach []          = []
+elementsOfEach l@(xs : _)  = let
+  xs' = nub xs
+  listToMaybe' y = if null y then Nothing else Just y
+  in
+   map concat $
+   catMaybes  $
+   map (\x -> sequence $ map
+              (listToMaybe' . filter ((==) x)) l
+       ) xs'
+
+
+-- groupEq takes a list and returns a pair: the first
+-- element of the pair is a list of lists, each list containing
+-- the elements of the input list that are repeated.  The
+-- second element of the pair is the list of singletons.
+--
+groupEquals ::   [ VarIndexInContext ]
+            -> ([[ VarIndexInContext ]], [ VarIndexInContext ])
+groupEquals []       = ([], [])
+groupEquals (x : []) = ([], [ x ])
+groupEquals (x : xs) = geq [] [] x xs
+  where
+    geq :: [[ VarIndexInContext ]]                             -- accumulator list of matches
+        ->   [ VarIndexInContext ]                             -- accumulator list of non-matches
+        ->     VarIndexInContext                               -- item to test for match
+        ->   [ VarIndexInContext ]                             -- input list
+        -> ([[ VarIndexInContext ]], [ VarIndexInContext ])    -- pair of ([matches], nonmatches)
+    geq macc nacc y [] = (macc, y : nacc)
+    geq macc nacc y ys = let
+      (ms, nms) = partition ((==) y) ys
+      in if null nms
+         then ((y : ms) : macc, nacc)
+         else if null ms
+              then geq macc (y : nacc) (head nms) (tail nms)
+              else geq ((y : ms) : macc) nacc (head nms) (tail nms)
+  
 
 -- mkReplacements is the driver function for dummy replacement.  It
 -- first scans the passed index lists and generates all possible
 -- pairings of identically-named indices.
 --
--- This is clearly a quadratic algorithm, since it considers all
--- pairs that can be generated from the input IndexList.
--- There must be a way -- sorting, perhaps? -- to speed this
--- up.
---
--- It also seems as if quickly screening the input lists
--- to determine if there are any replacements to be done
--- at all would be worthwhile.
---
-mkReplacements :: [ IndexList ] -> [ IndexTrail ]
+mkReplacements :: MatchedIndices -> IndexList
 mkReplacements []  = []
-mkReplacements ils = let
-        --pairs      = (\x -> trace ("lengths in pair list is " ++ show (map length x)) x) $ filter (not . null) $ map mkPairs ils
-        pairs      = {-# SCC "pairs" #-} filter (not . null) $ map mkPairs ils
-        pairables  = {-# SCC "pairables" #-} map (map findCommonPrefix) pairs
-        pairables' = {-# SCC "pairables'" #-} map (sortBy (\x y -> compare (commonPrefix y)
-                                                  (commonPrefix x))) $ (\x -> trace ("pairables length = " ++ show (map length x)) x) pairables
-
-        resolvables = {-# SCC "resolvables" #-} map (partition (isProductOrTensorCxt . prefixDiff)) pairables'
-
-        resolutions (ps, ss) = {-# SCC "resolutions" #-} let
-                u = productEdits $ resolveProduct ps
-                v = sumEdits ss
-            in
-                resolveSum u v
-    in
-        (\x -> trace ("length of mkReplacements is " ++ show (length x)) x) $ concatMap resolutions resolvables
-
-
-mkPairs :: IndexList -> [ (IndexTrail, IndexTrail) ]
-mkPairs il = concatMap tailPairs $ tails il
-    where
-        -- tailPairs returns a list of pairs, with the first
-        -- element being the head of the list, and the second
-        -- element element drawn from the remainder of the list.
-        tailPairs []       = []
-        tailPairs (_ : []) = []
-        tailPairs (x : xs) = [ (x, x') | x' <- xs ]
-
-
-findCommonPrefix :: (IndexTrail, IndexTrail) -> PairPrefix
-findCommonPrefix (x, y) = let
-    bc  = reverse (snd x)
-    bc' = reverse (snd y)
-    p   = span (\(a, b) -> a == b) $ zip bc bc'
-
-    prefix = map fst (fst p)
-    dcxt   = fst (head (snd p))
-    in
-        PairPrefix { commonPrefix = prefix
-                   , prefixDiff   = dcxt
-                   , indexTrail   = x
-                   , indexTrail'  = y
-                   }
-
-
-resolveProduct :: [ PairPrefix ] -> [ PairPrefix ]
-resolveProduct [] = []
-resolveProduct (p : ps) = pairOff p : resolveProduct (deleteOverlap p ps)
-    where
-        pairOff :: PairPrefix -> PairPrefix
-        pairOff pp = let
-                (ind,  bc ) = indexTrail  pp
-                (ind', bc') = indexTrail' pp
-                mf          = varIndexManifold ind
-
-                uind   = unsafePerformIO $ uniqueDummy mf
-                uind'  = if isCovariant ind  then toCovariant uind else uind
-                uind'' = if isCovariant ind' then toCovariant uind else uind
-            in
-                pp { indexTrail = (uind', bc), indexTrail' = (uind'', bc') }
-
-        deleteOverlap x xs = filter (notOverlapping x) xs
-            where
-                notOverlapping y y' = let
-                        t  = snd (indexTrail  y)
-                        t' = snd (indexTrail' y)
-                        u  = snd (indexTrail  y')
-                        u' = snd (indexTrail' y')
-                   in
-                        not (t == u || t == u' || t' == u || t' == u')
-
-
-productEdits :: [ PairPrefix ] -> IndexList
-productEdits ps = concatMap (\x -> [ indexTrail x, indexTrail' x]) ps
-
-
-resolveSum :: IndexList -> [ (Breadcrumbs, Breadcrumbs) ] -> IndexList
-resolveSum products sums = let
-  pm  = Map.fromList (map swap products)
-  pm' = foldr matchSum pm sums
-  in
-   map swap (Map.toList pm')
-
-
-matchSum :: (Breadcrumbs, Breadcrumbs)
-         -> Map.Map Breadcrumbs VarIndex
-         -> Map.Map Breadcrumbs VarIndex
-matchSum (bc, bc') m = let
-  i  = Map.lookup bc  m
-  i' = Map.lookup bc' m
-  in
-   case (i, i') of
-     (Just v,  _)       -> Map.insert bc' v  m
-     (Nothing, Just v') -> Map.insert bc  v' m
-     (Nothing, Nothing) -> m
-
-
--- If there is a sum before the first product, then keep
--- the edit.
---
-sumEdits :: [ PairPrefix ] ->  [ (Breadcrumbs, Breadcrumbs) ]
-sumEdits v = let
-  v'  = filter (not . null . commonPrefix) v
-  v'' = filter (isProductCxt . last . commonPrefix) v'
-  in
-   map (\x -> (snd $ indexTrail x, snd $ indexTrail' x)) v''
+mkReplacements mss = concatMap mkDummies mss
+  where
+    mkDummies :: IndexList -> IndexList
+    mkDummies ms = let
+      mf   = varIndexManifold (index (head ms))
+      repl = unsafePerformIO $ uniqueDummy mf
+      
+      replaceWithDummy rind ind = if isCovariant (index ind)
+                                  then ind { index = toCovariant $ rind }
+                                  else ind { index = rind }
+      in 
+       map (replaceWithDummy repl) ms
 
 
 -- Given an index and a breadcrumb trail, replace the corresponding
 -- index in the tree with the supplied index.  The argument order
 -- is compatible with using replaceIndex in foldr.
 --
-replaceIndex :: (VarIndex, Breadcrumbs) -> Expr -> Expr
-replaceIndex (i, bc) e = snd $ ri i bc ([], e)
+replaceIndex :: VarIndexInContext -> Expr -> Expr
+replaceIndex v e = snd $ ri (index v) (context v) ([], e)
     where
         ri :: VarIndex -> Breadcrumbs -> (Breadcrumbs, Expr) -> (Breadcrumbs, Expr)
         ri i' b' (b, t@(Symbol (Tensor _))) = if (b == tail b')
-                                           then (b, repIndex (head b') i' t)
-                                           else (b, t)
+                                              then (b, repIndex (head b') i' t)
+                                              else (b, t)
         ri i' b' (b, Product ps)   = (b, Product (zipWith (\n x -> snd (ri i' b' ((Pcxt n) : b, x))) [1..] ps))
         ri i' b' (b, Sum ts)       = (b, Sum     (zipWith (\n x -> snd (ri i' b' ((Scxt n) : b, x))) [1..] ts))
         ri _  _  u@(_, _)          = u
@@ -252,26 +219,43 @@ replaceIndex (i, bc) e = snd $ ri i bc ([], e)
         repIndex _ _ _                            = error "Can't happen: error replacing index"
 
 
--- Given a tree and an IndexList, replace all of the corresponding
+-- Given a tree and an MatchedIndices list, replace all of the corresponding
 -- indices in the tree.
 --
 replaceIndices :: Expr -> IndexList -> Expr
 replaceIndices t edits = foldr replaceIndex t edits
 
 
+collectIndices   :: Expr -> MatchedIndices
+collectIndices   = resolveDummies excludeDummies
+
+collectIndices_  :: Expr -> MatchedIndices
+collectIndices_  = resolveDummies excludeNone
+
+collectIndices__ :: Expr -> MatchedIndices
+collectIndices__ = resolveDummies excludeDummiesAndPatterns
+
+
 -- Top level function for replacing repeated indices with unique
 -- dummies.
 --
 uniqueDummies   :: Expr -> Expr
-uniqueDummies t = replaceIndices t $ mkReplacements $ collectIndices t
+uniqueDummies t = replaceIndices t $
+                  mkReplacements   $
+                  collectIndices t
 
 
 -- Top level function that relabels existing dummy indices
 --
 uniqueDummies_   :: Expr -> Expr
-uniqueDummies_ t = replaceIndices t $ mkReplacements $ collectIndices_ ((\x -> trace ("uniqueDummies_ : " ++ show x) x) t)
+uniqueDummies_ t = replaceIndices t $
+                   mkReplacements   $
+                   collectIndices_ t
+
 
 -- Top level function that relabels repeated indices, skipping pattern indices
 --
 uniqueDummies__   :: Expr -> Expr
-uniqueDummies__ t = replaceIndices t $ mkReplacements $ collectIndices__ ((\x -> trace ("uniqueDummies__ : " ++ show x) x) t)
+uniqueDummies__ t = replaceIndices t $
+                    mkReplacements   $
+                    collectIndices__ t

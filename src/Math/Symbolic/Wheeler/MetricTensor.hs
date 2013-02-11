@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 --
 -- MetricTensor.hs
 --
@@ -30,25 +31,56 @@ hasDummies (Symbol (Tensor t)) = any isDummy $ slots t
 hasDummies _ = False
 
 
-metricDummyIndices :: Expr -> [ IndexList ]
-metricDummyIndices e = fi [] [] e
-    where
-        fi cxt il t@(Symbol (Tensor t'))  = if isMetric t && hasDummies t
-                                             then (zipWith (\n i -> (i, Tcxt n : cxt) ) [1..] (slots t')) : il
-                                             else il
-        fi cxt il (Product ps) = concatMap (\(n, x) -> fi ((Pcxt n) : cxt) il x) $ zip [1..] ps
-        fi cxt il (Sum  ts)    = concatMap (\(n, x) -> fi ((Scxt n) : cxt) il x) $ zip [1..] ts
-        fi _   il _            = il
+gatherLeaves :: forall a . (Expr -> Breadcrumbs -> Maybe a) -> Expr -> [ a ]
+gatherLeaves leafFn expr = gl [] expr
+  where
+    cxtList cxtName cxt = map (\i -> (cxtName i) : cxt) [1.. ]
+    
+    gl :: Breadcrumbs -> Expr -> [ a ]
+    gl bc e = case e of
+      (Sum ts)     -> let
+        bcs = cxtList Scxt bc
+        in concat $ zipWith gl bcs ts
+           
+      (Product fs) -> let
+        bcs = cxtList Pcxt bc
+        in concat $ zipWith gl bcs fs
+           
+      s@(Symbol _) -> let
+        l = leafFn s bc
+        in if isJust l then [ fromJust l ] else []
+                                            
+      c@(Const _)  -> let
+        l = leafFn c bc
+        in if isJust l then [ fromJust l ] else []
+                                                
+      _ -> []
+    
+metricDummies :: Expr -> Breadcrumbs -> Maybe [ VarIndexInContext ]
+metricDummies t@(Symbol (Tensor t')) bc =
+  if isMetric t && hasDummies t
+  then Just $ zipWith (\n i -> VarIndexInContext { index   = i
+                                                 , context = Tcxt n : bc }) [1..] (slots t')
+  else Nothing
+metricDummies _ _ = Nothing
 
 
-metricDummyIndices_ :: [ IndexList ] -> IndexList
+metricDummyIndices :: Expr -> [[ VarIndexInContext ]]
+metricDummyIndices ex = gatherLeaves metricDummies ex
+
+
+metricDummyIndices_ :: [[ VarIndexInContext ]] -> [ VarIndexInContext ]
 metricDummyIndices_ il = map toEdit il
     where
-      toEdit (i : i' : []) = if not (isDummy (fst i)) then (fst i, snd i') else (fst i', snd i)
+      toEdit (i : i' : []) = if not (isDummy (index i))
+                             then VarIndexInContext { index   = index i
+                                                    , context = context i' }
+                             else VarIndexInContext { index   = index i' 
+                                                    , context = context i }
       toEdit _             = error "metricDummyIndices_ applied to ill-formed list"
       
 
-metricDummyEdits :: Expr -> IndexList
+metricDummyEdits :: Expr -> [ VarIndexInContext ]
 metricDummyEdits = metricDummyIndices_ . metricDummyIndices
 
 findDummyMetric :: Expr -> Maybe Expr
@@ -66,6 +98,7 @@ isDummyKronecker :: Expr -> Bool
 isDummyKronecker t@(Symbol (Tensor t')) = isKroneckerDelta t &&
                                           hasDummies t       &&
                                           not (contractedPair (slots t'))
+
 isDummyKronecker _ = False
 
 
@@ -109,10 +142,12 @@ eliminateOneMetric e =  let
   metricLoc            = snd $ fromJust metricIndices
   exprIndices          = concat $ collectIndices_ e
   (oldIndex, newIndex) = if isDummy mi then ((-mi), mi') else ((-mi'), mi)
-  indexLoc             = find (\x -> fst x == oldIndex) exprIndices
+  indexLoc             = find (\x -> index x == oldIndex) exprIndices
   in
    if isJust metricIndices && isJust indexLoc
-      then replaceIndex (newIndex, snd $ fromJust indexLoc) (replaceExpr metricLoc (Const 1) e) 
+      then replaceIndex (VarIndexInContext { index   = newIndex
+                                           , context = context $ fromJust indexLoc })
+                        (replaceExpr metricLoc (Const 1) e) 
       else e
 
 
@@ -132,10 +167,12 @@ eliminateOneKronecker e =  let
   kroneckerLoc         = snd $ fromJust kroneckerIndices
   exprIndices          = concat $ collectIndices_ e
   (oldIndex, newIndex) = if isDummy ki then ((-ki), ki') else ((-ki'), ki)
-  indexLoc             = find (\x -> fst x == oldIndex) exprIndices
+  indexLoc             = find (\x -> index x == oldIndex) exprIndices
   in
    if isJust kroneckerIndices && isJust indexLoc
-      then replaceIndex (newIndex, snd $ fromJust indexLoc) (replaceExpr kroneckerLoc (Const 1) e) 
+      then replaceIndex (VarIndexInContext { index   = newIndex
+                                           , context = context $ fromJust indexLoc })
+                        (replaceExpr kroneckerLoc (Const 1) e) 
       else e
 
 
