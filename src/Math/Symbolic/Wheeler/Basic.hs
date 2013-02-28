@@ -83,7 +83,7 @@ expandProduct r s              = let
 expandPower :: Expr -> Integer -> Expr
 expandPower u@(Sum (t : _)) n =
     let
-        r        = Sum [u, Product [Const (I (-1)), t]]   -- u - t
+        r        = u - t
         coeff k  = (fromInteger (fact n)) / (fromInteger (fact k * fact (n - k)))
         newPow k = let
                        p = t**(fromInteger (n - k))

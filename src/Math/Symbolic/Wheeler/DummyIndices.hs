@@ -205,15 +205,15 @@ replaceIndex :: VarIndexInContext -> Expr -> Expr
 replaceIndex v e = snd $ ri (index v) (context v) ([], e)
     where
         ri :: VarIndex -> Breadcrumbs -> (Breadcrumbs, Expr) -> (Breadcrumbs, Expr)
-        ri i' b' (b, t@(Symbol (Tensor _))) = if (b == tail b')
+        ri i' b' (b, t@(Symbol (Tensor _))) = {-# SCC "ri_1" #-} if (b == tail b')
                                               then (b, repIndex (head b') i' t)
                                               else (b, t)
-        ri i' b' (b, Product ps)   = (b, Product (zipWith (\n x -> snd (ri i' b' ((Pcxt n) : b, x))) [1..] ps))
-        ri i' b' (b, Sum ts)       = (b, Sum     (zipWith (\n x -> snd (ri i' b' ((Scxt n) : b, x))) [1..] ts))
-        ri _  _  u@(_, _)          = u
+        ri i' b' (b, Product ps)   = {-# SCC "ri_2" #-} (b, Product (zipWith (\n x -> snd (ri i' b' ((Pcxt n) : b, x))) [1..] ps))
+        ri i' b' (b, Sum ts)       = {-# SCC "ri_3" #-} (b, Sum     (zipWith (\n x -> snd (ri i' b' ((Scxt n) : b, x))) [1..] ts))
+        ri _  _  u@(_, _)          = {-# SCC "ri_4" #-} u
 
         repIndex                                  :: Cxt -> VarIndex -> Expr -> Expr
-        repIndex (Tcxt n) ind (Symbol (Tensor t)) = Symbol (Tensor $ t {slots = (replace n ind (slots t))})
+        repIndex (Tcxt n) ind (Symbol (Tensor t)) = {-# SCC "repIndex" #-} Symbol (Tensor $ t {slots = (replace n ind (slots t))})
             where
                 replace j x l = map (\(k, y) -> if j == k then x else y) $ zip [1..] l 
         repIndex _ _ _                            = error "Can't happen: error replacing index"
