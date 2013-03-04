@@ -54,10 +54,8 @@ expand p@(Power b (Const (I n)))
 expand e                  = e
 
 
--- Orignally, the second equation was:
---     expandProduct r s@(Sum _) = expandProduct s r
--- but this assumed commutativity.  The second equation below
--- does not.
+-- This version of expandProduct does not assume the commutativity
+-- of the factors.
 --
 expandProduct :: Expr -> Expr -> Expr
 expandProduct (Sum (t : [])) s = expandProduct t s
